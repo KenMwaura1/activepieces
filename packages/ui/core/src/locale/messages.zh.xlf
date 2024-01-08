@@ -551,7 +551,7 @@
           <context context-type="sourcefile">packages/ui/feature-dashboard/src/lib/components/sidenav-routes-list/sidenav-routes-list.component.ts</context>
           <context context-type="linenumber">65</context>
         </context-group>
-        <target state="needs-translation">Users</target>
+        <target state="translated">用户</target>
       </trans-unit>
       <trans-unit id="2724055831234181057" datatype="html" approved="yes">
         <source>Version</source>
@@ -1187,7 +1187,7 @@
           <context context-type="sourcefile">packages/ui/feature-authentication/src/lib/pages/sign-in/sign-in.component.html</context>
           <context context-type="linenumber">23,25</context>
         </context-group>
-        <target state="needs-translation"> Your user is inactive, please contact your administrator to activate it. </target>
+        <target state="translated"> 您的用户处于未激活状态，请联系您的管理员以激活它。 </target>
       </trans-unit>
       <trans-unit id="6663783128602596673" datatype="html" approved="yes">
         <source> Sign in </source>
@@ -1929,7 +1929,7 @@
           <context context-type="sourcefile">packages/ui/feature-builder-header/src/lib/flow-builder-header.component.html</context>
           <context context-type="linenumber">14</context>
         </context-group>
-        <target state="needs-translation">Dashboard</target>
+        <target state="translated">仪表盘</target>
       </trans-unit>
       <trans-unit id="6041115344061899387" datatype="html" approved="yes">
         <source>Rename</source>
@@ -1993,7 +1993,7 @@
           <context context-type="sourcefile">packages/ui/feature-builder-header/src/lib/flow-builder-header.component.ts</context>
           <context context-type="linenumber">51</context>
         </context-group>
-        <target state="needs-translation">Go to folder</target>
+        <target state="translated">转到文件夹</target>
       </trans-unit>
       <trans-unit id="3564199105925922112" datatype="html" approved="yes">
         <source>This will permanently delete the flow, all its data and any background runs.
@@ -2125,7 +2125,7 @@
           <context context-type="sourcefile">packages/ui/feature-builder-header/src/lib/version-history-button/version-history-button.component.html</context>
           <context context-type="linenumber">2</context>
         </context-group>
-        <target state="needs-translation">Versions History</target>
+        <target state="translated">版本历史</target>
       </trans-unit>
       <trans-unit id="2369423116644077158" datatype="html">
         <source>Versions</source>
@@ -2137,7 +2137,7 @@
           <context context-type="sourcefile">packages/ui/feature-builder-left-sidebar/src/lib/version-history/version-history.component.ts</context>
           <context context-type="linenumber">35</context>
         </context-group>
-        <target state="needs-translation">Versions</target>
+        <target state="translated">版本</target>
       </trans-unit>
       <trans-unit id="3980254400386807047" datatype="html">
         <source>
@@ -2153,8 +2153,8 @@
           <context context-type="sourcefile">packages/ui/feature-builder-left-sidebar/src/lib/dialogs/use-as-draft-confirmation-dialog/use-as-draft-confirmation-dialog.component.html</context>
           <context context-type="linenumber">2,7</context>
         </context-group>
-        <target state="needs-translation">
-          Warning 
+        <target state="translated">
+          警告 
           <x id="START_TAG_DIV_1" ctype="x-div_1" equiv-text="&lt;div class=&quot;ap-inline-block ap-h-[36px]  &quot;&gt;"/>
           <x id="START_TAG_DIV" ctype="x-div" equiv-text="&lt;div class=&quot;ap-flex ap-gap-2&amp;#10;        ap-items-center&quot;&gt;"/>
           <x id="START_TAG_SVG_ICON" ctype="x-svg_icon" equiv-text="&lt;svg-icon [svgStyle]=&quot;{ width: '20px', height: '20px' }&quot; src=&quot;assets/img/custom/warn.svg&quot;&gt;"/>
@@ -2174,12 +2174,12 @@
           <context context-type="sourcefile">packages/ui/feature-builder-left-sidebar/src/lib/dialogs/use-as-draft-confirmation-dialog/use-as-draft-confirmation-dialog.component.html</context>
           <context context-type="linenumber">14,15</context>
         </context-group>
-        <target state="needs-translation">
-          Your current draft version will be overwritten with version #.
+        <target state="translated">
+          您当前的草稿将被版本 #.
           <x id="START_BOLD_TEXT" ctype="x-b" equiv-text="&lt;b&gt;"/>
           <x id="INTERPOLATION" equiv-text="{{data.versionNumber}}"/>
           <x id="CLOSE_BOLD_TEXT" ctype="x-b" equiv-text="&lt;/b&gt;"/>
-        </target>
+        覆盖        </target>
       </trans-unit>
       <trans-unit id="6310395472139498755" datatype="html" approved="yes">
         <source>Run Details</source>
@@ -2263,7 +2263,7 @@
           <context context-type="sourcefile">packages/ui/feature-builder-left-sidebar/src/lib/version-history/version-history.component.html</context>
           <context context-type="linenumber">18</context>
         </context-group>
-        <target state="needs-translation">Viewing</target>
+        <target state="translated">正在浏览</target>
       </trans-unit>
       <trans-unit id="4808589666930368915" datatype="html" approved="yes">
         <source>Draft</source>
@@ -2283,8 +2283,8 @@
           <context context-type="sourcefile">packages/ui/feature-builder-left-sidebar/src/lib/version-history/version-history.component.html</context>
           <context context-type="linenumber">40,42</context>
         </context-group>
-        <target state="needs-translation">
-           View 
+        <target state="translated">
+           查看 
           <x id="START_TAG_SVG_ICON" ctype="x-svg_icon" equiv-text="g-icon src=&quot;assets/img/custom/eye.svg&quot; class=&quot;ap-w-[20px] ap-h-[20px]&quot;&amp;#10;                                    [applyClass]=&quot;true&quot;&gt;"/>
           <x id="CLOSE_TAG_SVG_ICON" ctype="x-svg_icon" equiv-text="View"/>
         </target>
@@ -2299,8 +2299,8 @@
           <context context-type="sourcefile">packages/ui/feature-builder-left-sidebar/src/lib/version-history/version-history.component.html</context>
           <context context-type="linenumber">47,49</context>
         </context-group>
-        <target state="needs-translation">
-           Use as draft 
+        <target state="translated">
+           用作草稿 
           <x id="START_TAG_SVG_ICON" ctype="x-svg_icon" equiv-text="g-icon src=&quot;assets/img/custom/pencil-underline.svg&quot; class=&quot;ap-w-[20px] ap-h-[20px]&quot;&amp;#10;                                    [applyClass]=&quot;true&quot;&gt;"/>
           <x id="CLOSE_TAG_SVG_ICON" ctype="x-svg_icon" equiv-text="Use as draf"/>
         </target>
@@ -2543,7 +2543,7 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">packages/ui/feature-dashboard/src/lib/pages/flows-table/flows-table.datasource.ts</context>
-          <context context-type="linenumber">102</context>
+          <context context-type="linenumber">105</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">packages/ui/feature-dashboard/src/lib/pages/flows-table/folders-list/folders-list.component.html</context>
@@ -3337,11 +3337,11 @@
         <source>Untitled</source>
         <context-group purpose="location">
           <context context-type="sourcefile">packages/ui/feature-dashboard/src/lib/pages/flows-table/empty-flows-table/empty-flows-table.component.ts</context>
-          <context context-type="linenumber">41</context>
+          <context context-type="linenumber">43</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">packages/ui/feature-dashboard/src/lib/pages/flows-table/flows-table-title/flows-table-title.component.ts</context>
-          <context context-type="linenumber">41</context>
+          <context context-type="linenumber">44</context>
         </context-group>
         <target state="final">未命名</target>
       </trans-unit>
@@ -3645,7 +3645,7 @@
           <context context-type="sourcefile">packages/ui/feature-dashboard/src/lib/pages/runs-table/runs-table.component.html</context>
           <context context-type="linenumber">56,57</context>
         </context-group>
-        <target state="needs-translation">
+        <target state="translated">
           <x id="INTERPOLATION" equiv-text="option.label }}"/>
         </target>
       </trans-unit>

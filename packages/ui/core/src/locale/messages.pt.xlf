@@ -597,7 +597,7 @@
         </context-group>
         <target state="final">Excluir
 
-<x id="INTERPOLATION" equiv-text="{{data.entityName}}"/></target>
+<x id="INTERPOLACAO" equiv-text="{{data.entityName}}"/></target>
       </trans-unit>
       <trans-unit id="6560405483623875453" datatype="html" approved="yes">
         <source>
@@ -2137,7 +2137,7 @@ Por favor, informe o nome do pacote NPM
           <context context-type="sourcefile">packages/ui/feature-builder-left-sidebar/src/lib/version-history/version-history.component.ts</context>
           <context context-type="linenumber">35</context>
         </context-group>
-        <target state="needs-translation">Versions</target>
+        <target state="translated">Versões</target>
       </trans-unit>
       <trans-unit id="3980254400386807047" datatype="html">
         <source>
@@ -2174,8 +2174,8 @@ Por favor, informe o nome do pacote NPM
           <context context-type="sourcefile">packages/ui/feature-builder-left-sidebar/src/lib/dialogs/use-as-draft-confirmation-dialog/use-as-draft-confirmation-dialog.component.html</context>
           <context context-type="linenumber">14,15</context>
         </context-group>
-        <target state="needs-translation">
-          Your current draft version will be overwritten with version #.
+        <target state="translated">
+          Sua versão atual de rascunho será substituída pela versão #.
           <x id="START_BOLD_TEXT" ctype="x-b" equiv-text="&lt;b&gt;"/>
           <x id="INTERPOLATION" equiv-text="{{data.versionNumber}}"/>
           <x id="CLOSE_BOLD_TEXT" ctype="x-b" equiv-text="&lt;/b&gt;"/>
@@ -2333,7 +2333,7 @@ Por favor, informe o nome do pacote NPM
           <context context-type="sourcefile">packages/ui/feature-builder-right-sidebar/src/lib/edit-step-sidebar/step-name-editor/step-name-editor.component.html</context>
           <context context-type="linenumber">6</context>
         </context-group>
-        <target state="needs-translation">Edit step name</target>
+        <target state="translated">Editar nome da etapa</target>
       </trans-unit>
       <trans-unit id="6867381603185205680" datatype="html">
         <source> Or </source>
@@ -2345,7 +2345,7 @@ Por favor, informe o nome do pacote NPM
           <context context-type="sourcefile">packages/ui/feature-builder-test-steps/src/lib/test-piece-webhook-trigger/test-piece-webhook-trigger.component.html</context>
           <context context-type="linenumber">19,21</context>
         </context-group>
-        <target state="needs-translation"> Or </target>
+        <target state="translated"> Ou </target>
       </trans-unit>
       <trans-unit id="2537648413493478491" datatype="html">
         <source>Inputs</source>
@@ -2361,7 +2361,7 @@ Por favor, informe o nome do pacote NPM
           <context context-type="sourcefile">packages/ui/feature-builder-right-sidebar/src/lib/input-forms/loop-step-input-form/loop-step-input-form.component.html</context>
           <context context-type="linenumber">4</context>
         </context-group>
-        <target state="needs-translation">Items</target>
+        <target state="translated">Itens</target>
       </trans-unit>
       <trans-unit id="3349891418640044644" datatype="html">
         <source> Items are required. </source>
@@ -2369,7 +2369,7 @@ Por favor, informe o nome do pacote NPM
           <context context-type="sourcefile">packages/ui/feature-builder-right-sidebar/src/lib/input-forms/loop-step-input-form/loop-step-input-form.component.html</context>
           <context context-type="linenumber">7,9</context>
         </context-group>
-        <target state="needs-translation"> Items are required. </target>
+        <target state="translated"> Os itens são requeridos. </target>
       </trans-unit>
       <trans-unit id="97940262148604706" datatype="html">
         <source> Action </source>
@@ -2377,7 +2377,7 @@ Por favor, informe o nome do pacote NPM
           <context context-type="sourcefile">packages/ui/feature-builder-right-sidebar/src/lib/input-forms/piece-input-forms/piece-action-input-form/piece-action-input-form.component.html</context>
           <context context-type="linenumber">4</context>
         </context-group>
-        <target state="needs-translation"> Action </target>
+        <target state="translated"> Ação </target>
       </trans-unit>
       <trans-unit id="8585958577229523205" datatype="html">
         <source> No options available </source>
@@ -2389,7 +2389,7 @@ Por favor, informe o nome do pacote NPM
           <context context-type="sourcefile">packages/ui/feature-builder-right-sidebar/src/lib/input-forms/piece-input-forms/piece-trigger-input-form/piece-trigger-input-form.component.html</context>
           <context context-type="linenumber">40,42</context>
         </context-group>
-        <target state="needs-translation"> No options available </target>
+        <target state="translated"> Nenhuma opção disponível </target>
       </trans-unit>
       <trans-unit id="7863127620120051284" datatype="html">
         <source> Action is required </source>
@@ -2397,7 +2397,7 @@ Por favor, informe o nome do pacote NPM
           <context context-type="sourcefile">packages/ui/feature-builder-right-sidebar/src/lib/input-forms/piece-input-forms/piece-action-input-form/piece-action-input-form.component.html</context>
           <context context-type="linenumber">27,29</context>
         </context-group>
-        <target state="needs-translation"> Action is required </target>
+        <target state="translated"> A ação é necessária </target>
       </trans-unit>
       <trans-unit id="8425620343514116260" datatype="html">
         <source> Trigger </source>
@@ -2405,7 +2405,7 @@ Por favor, informe o nome do pacote NPM
           <context context-type="sourcefile">packages/ui/feature-builder-right-sidebar/src/lib/input-forms/piece-input-forms/piece-trigger-input-form/piece-trigger-input-form.component.html</context>
           <context context-type="linenumber">4</context>
         </context-group>
-        <target state="needs-translation"> Trigger </target>
+        <target state="translated"> Gatilho </target>
       </trans-unit>
       <trans-unit id="628476928604062458" datatype="html">
         <source>Select a Trigger</source>
@@ -2543,7 +2543,7 @@ Por favor, informe o nome do pacote NPM
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">packages/ui/feature-dashboard/src/lib/pages/flows-table/flows-table.datasource.ts</context>
-          <context context-type="linenumber">102</context>
+          <context context-type="linenumber">105</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">packages/ui/feature-dashboard/src/lib/pages/flows-table/folders-list/folders-list.component.html</context>
@@ -3337,11 +3337,11 @@ Por favor, informe o nome do pacote NPM
         <source>Untitled</source>
         <context-group purpose="location">
           <context context-type="sourcefile">packages/ui/feature-dashboard/src/lib/pages/flows-table/empty-flows-table/empty-flows-table.component.ts</context>
-          <context context-type="linenumber">41</context>
+          <context context-type="linenumber">43</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">packages/ui/feature-dashboard/src/lib/pages/flows-table/flows-table-title/flows-table-title.component.ts</context>
-          <context context-type="linenumber">41</context>
+          <context context-type="linenumber">44</context>
         </context-group>
         <target state="needs-translation">Untitled</target>
       </trans-unit>
