@@ -7,7 +7,7 @@ import { generateMockToken } from '../../../helpers/auth'
 import { stripeHelper } from '../../../../src/app/ee/billing/billing/stripe-helper'
 import { emailService } from '../../../../src/app/ee/helper/email/email-service'
 import { faker } from '@faker-js/faker'
-import { Project, User } from '@activepieces/shared'
+import { PlatformRole, Project, User } from '@activepieces/shared'
 import { PrincipalType } from '@activepieces/shared'
 import { AddProjectMemberRequestBody, ApiKeyResponseWithValue, Platform, ProjectMemberRole, ProjectMemberStatus } from '@activepieces/ee-shared'
 
@@ -40,6 +40,7 @@ describe('Project Member API', () => {
                 email: 'test@ap.com',
                 role: ProjectMemberRole.VIEWER,
                 projectId: mockProject2.id,
+                status: ProjectMemberStatus.ACTIVE,
             }
             // act
             const response = await app?.inject({
@@ -50,7 +51,7 @@ describe('Project Member API', () => {
                 },
                 body: mockInviteProjectMemberRequest,
             })
-            expect(response?.statusCode).toBe(StatusCodes.UNAUTHORIZED)
+            expect(response?.statusCode).toBe(StatusCodes.FORBIDDEN)
         })
 
 
@@ -153,7 +154,7 @@ describe('Project Member API', () => {
                 projectId: mockProject.id,
                 platform: {
                     id: mockPlatform.id,
-                    role: 'OWNER',
+                    role: PlatformRole.OWNER,
                 },
             })
 
@@ -226,12 +227,11 @@ describe('Project Member API', () => {
                         authorization: `Bearer ${mockApiKey.value}`,
                     },
                 })
-                expect(response?.statusCode).toBe(StatusCodes.UNAUTHORIZED)
+                expect(response?.statusCode).toBe(StatusCodes.FORBIDDEN)
             })
-        },
-        )
-        
+        })
     })
+
     describe('Delete project member Endpoint', () => {
         it('Deletes project member', async () => {
             const { mockUserToken, mockProject } = await createBasicEnvironment()
@@ -294,7 +294,7 @@ describe('Project Member API', () => {
                     authorization: `Bearer ${mockApiKey.value}`,
                 },
             })
-            expect(response?.statusCode).toBe(StatusCodes.UNAUTHORIZED)
+            expect(response?.statusCode).toBe(StatusCodes.FORBIDDEN)
         })
     })
 })
@@ -326,7 +326,7 @@ async function createBasicEnvironment(embeddingEnabled = false): Promise<{ mockU
         projectId: mockProject.id,
         platform: {
             id: mockPlatform.id,
-            role: 'OWNER',
+            role: PlatformRole.OWNER,
         },
     })
     return {

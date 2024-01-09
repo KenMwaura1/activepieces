@@ -1,6 +1,6 @@
 import { FastifyRequest } from 'fastify'
 import { accessTokenManager } from './lib/access-token-manager'
-import { ActivepiecesError, EndpointScope, ErrorCode, Principal, PrincipalType, ProjectType, apId, isEmpty, isNil } from '@activepieces/shared'
+import { ActivepiecesError, EndpointScope, ErrorCode, PlatformRole, Principal, PrincipalType, ProjectType, apId, isEmpty, isNil } from '@activepieces/shared'
 import { logger } from '@sentry/utils'
 import { system } from '../helper/system/system'
 import { SystemProp } from '../helper/system/system-prop'
@@ -25,7 +25,7 @@ export const authorizationMiddleware = async (request: FastifyRequest): Promise<
     }
 
     const principal = await getPrincipal(request)
-    const authenticatedRoute = isAuthenticatedRoute(request.routerPath, request.method)
+    const authenticatedRoute = isAuthenticatedRoute(request)
     request.principal = principal
 
     if (principal.type === PrincipalType.UNKNOWN && authenticatedRoute) {
@@ -75,7 +75,7 @@ async function getJwtPrincipal(token: string, request: FastifyRequest): Promise<
 
     // TODO Merge with API key once it's specified for all routes, currenttly we ignore old routes
     const allowedPrincipals = request.routeConfig.allowedPrincipals
-    if (!isNil(allowedPrincipals) && !allowedPrincipals.includes(principal.type)) {
+    if (allowedPrincipals && !allowedPrincipals.includes(principal.type)) {
         throw new ActivepiecesError({
             code: ErrorCode.AUTHORIZATION,
             params: {
@@ -83,9 +83,13 @@ async function getJwtPrincipal(token: string, request: FastifyRequest): Promise<
             },
         })
     }
-
-    const projectId = await getProjectIdFromBodyOrQuery(request)
-    if (!isNil(projectId) && principal.projectId !== projectId) {
+    // TODO this is a hack to allow token generation for project id
+    const exemptedRoutesFromProjectIdCheck = ['/v1/users/projects/:projectId/token']
+    if (exemptedRoutesFromProjectIdCheck.includes(request.routerPath)) {
+        return principal
+    }
+    const projectId = getProjectIdFromBodyOrQuery(request)
+    if (projectId && projectId !== principal.projectId) {
         throw new ActivepiecesError({
             code: ErrorCode.AUTHORIZATION,
             params: {
@@ -114,11 +118,11 @@ async function getAPIKeyPrincipal(rawToken: string, request: FastifyRequest): Pr
             id: apiKey.id,
             type: PrincipalType.SERVICE,
             // TODO remove this
-            projectId: 'ANONYMOUSE_' + nanoid(),
+            projectId: 'ANONYMOUS_' + nanoid(),
             projectType: ProjectType.PLATFORM_MANAGED,
             platform: {
                 id: apiKey.platformId,
-                role: 'OWNER',
+                role: PlatformRole.OWNER,
             },
         }
     }
@@ -148,13 +152,13 @@ async function getAPIKeyPrincipal(rawToken: string, request: FastifyRequest): Pr
         projectType: ProjectType.PLATFORM_MANAGED,
         platform: {
             id: apiKey.platformId,
-            role: 'OWNER',
+            role: PlatformRole.OWNER,
         },
     }
 }
 
 async function getProjectIdFromRequest(request: FastifyRequest): Promise<string | undefined> {
-    if (request.routerPath.endsWith(':id') && ['GET', 'DELETE', 'POST'].includes(request.method)) {
+    if (request.routerPath.includes(':id')) {
         const resourceName = extractResourceName(request.routerPath)
         const { id } = request.params as { id: string }
         return extractProjectIdFromResource(resourceName, id)
@@ -162,23 +166,16 @@ async function getProjectIdFromRequest(request: FastifyRequest): Promise<string 
     return getProjectIdFromBodyOrQuery(request)
 }
 
-async function getProjectIdFromBodyOrQuery(request: FastifyRequest): Promise<string | undefined> {
-    switch (request.method) {
-        case 'POST': {
-            const { projectId } = request.body as { projectId: string }
-            return projectId
-        }
-        case 'GET': {
-            if (request.routerPath.endsWith('/')) {
-                return undefined
-            }
-            const { projectId } = request.query as { projectId: string }
-            return projectId
-        }
+function getProjectIdFromBodyOrQuery(request: FastifyRequest): string | undefined {
+    if (isObject(request.body) && 'projectId' in request.body) {
+        return request.body.projectId as string
     }
+    else if (isObject(request.query) && 'projectId' in request.query) {
+        return request.query.projectId as string
+    }
+
     return undefined
 }
-
 
 async function extractProjectIdFromResource(resource: string | undefined, id: string): Promise<string | undefined> {
     const tableName = getTableNameFromResource(resource)
@@ -198,7 +195,7 @@ function getTableNameFromResource(resource: string | undefined): string | undefi
     switch (resource) {
         case 'flows':
             return FlowEntity.options.name
-        case 'connections':
+        case 'app-connections':
             return AppConnectionEntity.options.name
         case 'project-members':
             return ProjectMemberEntity.options.name
@@ -206,50 +203,19 @@ function getTableNameFromResource(resource: string | undefined): string | undefi
     return undefined
 }
 
-function isAuthenticatedRoute(routerPath: string, method: string): boolean {
+function isAuthenticatedRoute(fastifyRequest: FastifyRequest): boolean {
+    const allowedPrincipals = fastifyRequest.routeConfig.allowedPrincipals ?? []
+    if (allowedPrincipals.includes(PrincipalType.UNKNOWN)) {
+        return false
+    }
     const ignoredRoutes = new Set([
-        // BEGIN EE
-        '/v1/connection-keys/app-connections',
-        '/v1/billing/stripe/webhook',
-        '/v1/flow-templates',
-        '/v1/appsumo/token',
-        '/v1/appsumo/action',
-        '/v1/flow-templates/:id',
-        '/v1/project-members/accept',
-        '/v1/managed-authn/external-token',
-        '/v1/otp',
-        '/v1/authn/local/reset-password',
-        '/v1/authn/federated/login',
-        '/v1/authn/federated/claim',
-        // END EE
-        '/v1/chatbots/:id/ask',
-        '/v1/chatbots/:id/metadata',
-        '/v1/flow-runs/:id/resume',
-        '/v1/pieces/stats',
-        '/v1/authn/local/verify-email',
-        '/v1/pieces/:name',
         '/favicon.ico',
-        '/v1/pieces/:scope/:name',
-        '/v1/app-events/:pieceUrl',
-        '/v1/authentication/sign-in',
-        '/v1/authentication/sign-up',
-        '/v1/flags',
-        '/v1/webhooks',
-        '/v1/webhooks/:flowId',
-        '/v1/webhooks/:flowId/sync',
-        '/v1/webhooks/:flowId/simulate',
         '/v1/docs',
         '/redirect',
     ])
-    if (ignoredRoutes.has(routerPath) || routerPath.startsWith('/ui')) {
+    if (ignoredRoutes.has(fastifyRequest.routerPath) || fastifyRequest.routerPath.startsWith('/ui')) {
         return false
     }
-
-    if ((routerPath === '/v1/app-credentials' && method === 'GET') ||
-        (routerPath === '/v1/pieces' && method === 'GET')) {
-        return false
-    }
-
     return true
 }
 
@@ -281,3 +247,6 @@ function handleInvalidBearerToken(): void {
     })
 }
 
+function isObject(obj: unknown): obj is Record<string, unknown> {
+    return typeof obj === 'object' && obj !== null && !Array.isArray(obj)
+}

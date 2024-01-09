@@ -9,7 +9,6 @@ import {
     Principal,
     ProjectId,
     SeekPage,
-    User,
     UserId,
     apId,
     isNil,
@@ -31,6 +30,7 @@ import dayjs from 'dayjs'
 import { accessTokenManager } from '../../authentication/lib/access-token-manager'
 import { getEdition } from '../../helper/secret-helper'
 import { IsNull } from 'typeorm'
+import { jwtUtils } from '../../helper/jwt-utils'
 
 const projectMemberRepo = databaseConnection.getRepository(ProjectMemberEntity)
 
@@ -40,8 +40,15 @@ export const projectMemberService = {
             projectId,
         })
 
+        const existingProjectMember = await projectMemberRepo.findOneBy({
+            projectId,
+            email,
+            platformId: isNil(platformId) ? IsNull() : platformId,
+        })
+        const projectMemberId = existingProjectMember?.id ?? apId()
+
         const projectMember: NewProjectMember = {
-            id: apId(),
+            id: projectMemberId,
             updated: dayjs().toISOString(),
             email,
             platformId,
@@ -153,11 +160,11 @@ export const projectMemberService = {
         })
         return member?.role ?? null
     },
-    async listByUser(user: User): Promise<ProjectMemberSchema[]> {
+    async listByUser({ email, platformId }: { email: string, platformId: null | string }): Promise<ProjectMemberSchema[]> {
         return projectMemberRepo.findBy({
-            email: user.email,
+            email,
             status: ProjectMemberStatus.ACTIVE,
-            platformId: isNil(user.platformId) ? IsNull() : user.platformId,
+            platformId: isNil(platformId) ? IsNull() : platformId,
         })
     },
     async delete(
@@ -174,7 +181,10 @@ export const projectMemberService = {
 }
 
 async function getByInvitationTokenOrThrow(invitationToken: string): Promise<ProjectMember> {
-    const { id: projectMemberId } = await accessTokenManager.extractPrincipal(invitationToken) as ProjectMemberToken
+    const { id: projectMemberId } = await jwtUtils.decodeAndVerify<ProjectMemberToken>({
+        jwt: invitationToken,
+        key: await jwtUtils.getJwtSecret(),
+    })
     return getOrThrow(projectMemberId)
 }
 
@@ -226,7 +236,7 @@ type AcceptParams = {
     invitationToken: string
 }
 
-type ProjectMemberToken = {
+export type ProjectMemberToken = {
     id: string
 }
 
