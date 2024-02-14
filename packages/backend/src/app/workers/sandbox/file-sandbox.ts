@@ -30,13 +30,17 @@ export class FileSandbox extends AbstractSandbox {
 
     public override async runOperation(operation: string): Promise<ExecuteSandboxResult> {
         const startTime = Date.now()
-        const pieceSources = system.get(SystemProp.PIECES_SOURCE)
+        const pieceSource = system.getOrThrow(SystemProp.PIECES_SOURCE)
+        const codeSandboxType = system.get(SystemProp.CODE_SANDBOX_TYPE)
 
         const command = [
             `cd ${this.getSandboxFolderPath()}`,
             '&&',
-            `cross-env AP_PIECES_SOURCE=${pieceSources} NODE_OPTIONS=--enable-source-maps`,
-            '&&',
+            'cross-env-shell',
+            `AP_CODE_SANDBOX_TYPE=${codeSandboxType}`,
+            `AP_PIECES_SOURCE=${pieceSource}`,
+            'NODE_OPTIONS=--enable-source-maps',
+            `${process.platform === 'win32' ? '&&' : ''}`,
             `"${AbstractSandbox.nodeExecutablePath}"`,
             'main.js',
             operation,
@@ -60,7 +64,8 @@ export class FileSandbox extends AbstractSandbox {
     }
 
     public override getSandboxFolderPath(): string {
-        return path.join(__dirname, `../../sandbox/${this.boxId}`)
+        const systemCache = system.get(SystemProp.CACHE_PATH) ?? __dirname
+        return path.join(systemCache, 'sandbox', `${this.boxId}`)
     }
 
     protected override async setupCache(): Promise<void> {

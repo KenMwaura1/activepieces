@@ -1,26 +1,27 @@
-import { Platform } from '@activepieces/ee-shared';
 import {
   AfterViewInit,
   ChangeDetectionStrategy,
   Component,
-  OnInit,
   ViewChild,
 } from '@angular/core';
 import { MatTabChangeEvent, MatTabGroup } from '@angular/material/tabs';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Observable, tap } from 'rxjs';
-
+import { Platform } from '@activepieces/ee-shared';
+import { PLATFORM_RESOLVER_KEY } from '../../platform.resolver';
+import { PLATFORM_DEMO_RESOLVER_KEY } from '../../is-platform-demo.resolver';
 @Component({
   selector: 'app-platform-settings',
   templateUrl: './platform-settings.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class PlatformSettingsComponent implements AfterViewInit, OnInit {
+export class PlatformSettingsComponent implements AfterViewInit {
   @ViewChild('tabs') tabGroup?: MatTabGroup;
   title = $localize`Settings`;
   fragmentChanged$: Observable<string | null>;
   readonly apiKeysTabTitle = $localize`API Keys`;
   readonly signingKeysTabTitle = $localize`Signing Keys`;
+  readonly AuditLogTabTitle = $localize`Audit Log`;
   readonly customDomainTabTitle = $localize`Custom Domains`;
   readonly privacyAndTermsTabTitle = $localize`Privacy & Terms`;
   readonly accountManagementEmailTabTitle = $localize`Mail Server`;
@@ -30,10 +31,14 @@ export class PlatformSettingsComponent implements AfterViewInit, OnInit {
     2: 'TermsAndServices',
     3: 'CustomDomains',
     4: 'ApiKeys',
+    5: 'SSO',
+    6: 'AuditLog',
   };
-  platform!: Platform;
-
+  isDemo = false;
+  platform?: Platform;
   constructor(private router: Router, private route: ActivatedRoute) {
+    this.isDemo = this.route.snapshot.data[PLATFORM_DEMO_RESOLVER_KEY];
+    this.platform = this.route.snapshot.data[PLATFORM_RESOLVER_KEY];
     this.fragmentChanged$ = this.route.fragment.pipe(
       tap((fragment) => {
         if (fragment === null) {
@@ -43,9 +48,6 @@ export class PlatformSettingsComponent implements AfterViewInit, OnInit {
         }
       })
     );
-  }
-  ngOnInit(): void {
-    this.platform = this.route.snapshot.data['platform'];
   }
   ngAfterViewInit(): void {
     const fragment = this.route.snapshot.fragment;

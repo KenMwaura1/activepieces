@@ -14,8 +14,8 @@ import {
     ExecutionOutput,
     ExecuteActionResponse,
     EngineResponse,
-    GenricStepOutput,
-    ExcuteStepOperation,
+    GenericStepOutput,
+    ExecuteStepOperation,
     flowHelper,
     Action,
     ActionType,
@@ -26,32 +26,14 @@ import { triggerHelper } from './lib/helper/trigger-helper'
 import { utils } from './lib/utils'
 import { flowExecutor } from './lib/handler/flow-executor'
 import { ExecutionVerdict, FlowExecutorContext } from './lib/handler/context/flow-execution-context'
-import { BASE_CODE_DIRECTORY, INPUT_FILE, OUTPUT_FILE, PIECE_SOURCES } from './lib/constants'
+import { EngineConstants } from './lib/handler/context/engine-constants'
 import { testExecutionContext } from './lib/handler/context/test-execution-context'
-import { VariableService } from './lib/services/variable-service'
 
 const executeFlow = async (input: ExecuteFlowOperation, context: FlowExecutorContext): Promise<EngineResponse<ExecutionOutput>> => {
     const output = await flowExecutor.execute({
         action: input.flowVersion.trigger.nextAction,
         executionState: context,
-        constants: {
-            flowId: input.flowVersion.flowId,
-            flowRunId: input.flowRunId,
-            executionType: input.executionType,
-            serverUrl: input.serverUrl,
-            testSingleStepMode: false,
-            apiUrl: input.serverUrl,
-            projectId: input.projectId,
-            workerToken: input.workerToken,
-            variableService: new VariableService({
-                projectId: input.projectId,
-                workerToken: input.workerToken,
-            }),
-            filesServiceType: 'local',
-            resumePayload: input.executionType === ExecutionType.RESUME ? input.resumePayload : undefined,
-            piecesSource: PIECE_SOURCES,
-            baseCodeDirectory: BASE_CODE_DIRECTORY,
-        },
+        constants: EngineConstants.fromExecuteFlowInput(input),
     })
     return {
         status: EngineResponseStatus.OK,
@@ -60,7 +42,7 @@ const executeFlow = async (input: ExecuteFlowOperation, context: FlowExecutorCon
 }
 
 
-async function executeStep(input: ExcuteStepOperation): Promise<ExecuteActionResponse> {
+async function executeStep(input: ExecuteStepOperation): Promise<ExecuteActionResponse> {
     const step = flowHelper.getStep(input.flowVersion, input.stepName) as Action | undefined
     if (isNil(step) || !Object.values(ActionType).includes(step.type)) {
         throw new Error('Step not found or not supported')
@@ -73,23 +55,7 @@ async function executeStep(input: ExcuteStepOperation): Promise<ExecuteActionRes
             projectId: input.projectId,
             workerToken: input.workerToken,
         }),
-        constants: {
-            flowId: input.flowVersion.flowId,
-            flowRunId: 'test-run',
-            projectId: input.projectId,
-            executionType: ExecutionType.BEGIN,
-            serverUrl: input.serverUrl,
-            variableService: new VariableService({
-                projectId: input.projectId,
-                workerToken: input.workerToken,
-            }),
-            testSingleStepMode: true,
-            apiUrl: input.serverUrl,
-            workerToken: input.workerToken,
-            piecesSource: PIECE_SOURCES,
-            filesServiceType: 'db',
-            baseCodeDirectory: BASE_CODE_DIRECTORY,
-        },
+        constants: EngineConstants.fromExecuteStepInput(input),
     })
     return {
         success: output.verdict !== ExecutionVerdict.FAILED,
@@ -100,7 +66,7 @@ async function executeStep(input: ExcuteStepOperation): Promise<ExecuteActionRes
 function getFlowExecutionState(input: ExecuteFlowOperation): FlowExecutorContext {
     switch (input.executionType) {
         case ExecutionType.BEGIN:
-            return FlowExecutorContext.empty().upsertStep(input.flowVersion.trigger.name, GenricStepOutput.create({
+            return FlowExecutorContext.empty().upsertStep(input.flowVersion.trigger.name, GenericStepOutput.create({
                 type: input.flowVersion.trigger.type,
                 status: StepOutputStatus.SUCCEEDED,
                 input: {},
@@ -108,7 +74,7 @@ function getFlowExecutionState(input: ExecuteFlowOperation): FlowExecutorContext
         case ExecutionType.RESUME: {
             let flowContext = FlowExecutorContext.empty().increaseTask(input.tasks)
             for (const [step, output] of Object.entries(input.executionState.steps)) {
-                if (output.status === StepOutputStatus.SUCCEEDED) {
+                if ([StepOutputStatus.SUCCEEDED, StepOutputStatus.PAUSED].includes(output.status)) {
                     flowContext = flowContext.upsertStep(step, output)
                 }
             }
@@ -123,10 +89,10 @@ const execute = async (): Promise<void> => {
 
         switch (operationType) {
             case EngineOperationType.EXTRACT_PIECE_METADATA: {
-                const input: ExecuteExtractPieceMetadata = await utils.parseJsonFile(INPUT_FILE)
+                const input: ExecuteExtractPieceMetadata = await utils.parseJsonFile(EngineConstants.INPUT_FILE)
                 const output = await pieceHelper.extractPieceMetadata({
                     params: input,
-                    piecesSource: PIECE_SOURCES,
+                    piecesSource: EngineConstants.PIECE_SOURCES,
                 })
                 await writeOutput({
                     status: EngineResponseStatus.OK,
@@ -135,17 +101,23 @@ const execute = async (): Promise<void> => {
                 break
             }
             case EngineOperationType.EXECUTE_FLOW: {
-                const input: ExecuteFlowOperation = await utils.parseJsonFile(INPUT_FILE)
+                const input: ExecuteFlowOperation = await utils.parseJsonFile(EngineConstants.INPUT_FILE)
                 const flowExecutorContext = getFlowExecutionState(input)
                 const output = await executeFlow(input, flowExecutorContext)
                 await writeOutput(output)
                 break
             }
             case EngineOperationType.EXECUTE_PROPERTY: {
-                const input: ExecutePropsOptions = await utils.parseJsonFile(INPUT_FILE)
+                const input: ExecutePropsOptions = await utils.parseJsonFile(EngineConstants.INPUT_FILE)
                 const output = await pieceHelper.executeProps({
                     params: input,
-                    piecesSource: PIECE_SOURCES,
+                    piecesSource: EngineConstants.PIECE_SOURCES,
+                    executionState: await testExecutionContext.stateFromFlowVersion({
+                        flowVersion: input.flowVersion,
+                        projectId: input.projectId,
+                        workerToken: input.workerToken,
+                    }),
+                    constants: EngineConstants.fromExecutePropertyInput(input),
                 })
                 await writeOutput({
                     status: EngineResponseStatus.OK,
@@ -154,11 +126,11 @@ const execute = async (): Promise<void> => {
                 break
             }
             case EngineOperationType.EXECUTE_TRIGGER_HOOK: {
-                const input: ExecuteTriggerOperation<TriggerHookType> = await utils.parseJsonFile(INPUT_FILE)
+                const input: ExecuteTriggerOperation<TriggerHookType> = await utils.parseJsonFile(EngineConstants.INPUT_FILE)
 
                 const output = await triggerHelper.executeTrigger({
                     params: input,
-                    piecesSource: PIECE_SOURCES,
+                    constants: EngineConstants.fromExecuteTriggerInput(input),
                 })
                 await writeOutput({
                     status: EngineResponseStatus.OK,
@@ -167,7 +139,7 @@ const execute = async (): Promise<void> => {
                 break
             }
             case EngineOperationType.EXECUTE_STEP: {
-                const input: ExcuteStepOperation = await utils.parseJsonFile(INPUT_FILE)
+                const input: ExecuteStepOperation = await utils.parseJsonFile(EngineConstants.INPUT_FILE)
                 const output = await executeStep(input)
                 await writeOutput({
                     status: EngineResponseStatus.OK,
@@ -176,10 +148,10 @@ const execute = async (): Promise<void> => {
                 break
             }
             case EngineOperationType.EXECUTE_VALIDATE_AUTH: {
-                const input: ExecuteValidateAuthOperation = await utils.parseJsonFile(INPUT_FILE)
+                const input: ExecuteValidateAuthOperation = await utils.parseJsonFile(EngineConstants.INPUT_FILE)
                 const output = await pieceHelper.executeValidateAuth({
                     params: input,
-                    piecesSource: PIECE_SOURCES,
+                    piecesSource: EngineConstants.PIECE_SOURCES,
                 })
 
                 await writeOutput({
@@ -189,7 +161,7 @@ const execute = async (): Promise<void> => {
                 break
             }
             case EngineOperationType.EXECUTE_TEST_FLOW: {
-                const input: EngineTestOperation = await utils.parseJsonFile(INPUT_FILE)
+                const input: EngineTestOperation = await utils.parseJsonFile(EngineConstants.INPUT_FILE)
                 const testExecutionState = await testExecutionContext.stateFromFlowVersion({
                     flowVersion: input.sourceFlowVersion,
                     projectId: input.projectId,
@@ -217,5 +189,5 @@ execute()
     .catch(e => console.error(e))
 
 async function writeOutput(result: EngineResponse<unknown>): Promise<void> {
-    await utils.writeToJsonFile(OUTPUT_FILE, result)
+    await utils.writeToJsonFile(EngineConstants.OUTPUT_FILE, result)
 }

@@ -11,7 +11,7 @@
   <div class="ap-flex ap-items-center">
     <div class="ap-flex ap-items-center ap-gap-2">
       <ap-icon-button *ngIf="showNavigation$ | async" [width]="20" [height]="20"
-        iconUrl="assets/img/custom/dashboard/dashboard.svg" tooltipText="Dashboard" i18n-tooltipText
+        iconUrl="assets/img/custom/dashboard/home.svg" tooltipText="Home" i18n-tooltipText
         (buttonClicked)="redirectHome(false)" (auxclick)="redirectHome(true)"></ap-icon-button>
       <div class="ap-flex-grow ap-flex ap-items-center ap-gap-2" #spacer>
         <ng-container *ngIf="showNavigation$ | async">
@@ -24,7 +24,7 @@
         </ng-container>
         <ap-editable-text [editing]="editingFlowName" (editingChanges)="changeEditValue($event)"
           [value]="(flow$ | async)?.version?.displayName" (valueChanges)="saveFlowName($event)" [disableEditing]="
-            (isInDebugMode$ | async | defaultTrue) ||
+           
             (isInReadOnlyMode$ | async | defaultTrue)
           " [allowClick]="true" [cssClasses]="'ap-typography-body-1 !ap-font-semibold'"
           class="ap-text-title"></ap-editable-text>
@@ -37,64 +37,79 @@
       <mat-menu #menu="matMenu">
         <button mat-menu-item (click)="editingFlowName = true">
           <div class="ap-flex ap-gap-3 ap-items-center">
-            <svg-icon [applyClass]="true" src="assets/img/custom/pencil-underline.svg"
-              class="ap-fill-body ap-w-[20px] ap-h-[20px]">
+            <svg-icon [applyClass]="true" [src]="flowActionsUiInfo.rename.icon"
+              [class]=" flowActionsUiInfo.iconSizeTailWind">
             </svg-icon>
-            <span class="ap-text-body" i18n>Rename</span>
+            <span class="ap-text-body" i18n>{{flowActionsUiInfo.rename.text}}</span>
           </div>
         </button>
-        <button mat-menu-item *ngIf="flow$ | async as flow" (click)="duplicate()">
+
+        <button *ngIf="flow$ | async as flow" mat-menu-item (click)="moveFlow(flow)">
           <div class="ap-flex ap-gap-3 ap-items-center">
-            <svg-icon src="assets/img/custom/duplicate.svg" class="ap-w-[20px] ap-h-[20px]"
+            <svg-icon [applyClass]="true" [src]="flowActionsUiInfo.move.icon"
+              [class]=" flowActionsUiInfo.iconSizeTailWind">
+            </svg-icon>
+            <span class="ap-text-body" i18n>{{flowActionsUiInfo.move.text}}</span>
+          </div>
+        </button>
+
+        <button mat-menu-item (click)="duplicate()">
+          <div class="ap-flex ap-gap-3 ap-items-center">
+            <svg-icon [src]="flowActionsUiInfo.duplicate.icon" [class]="flowActionsUiInfo.iconSizeTailWind"
               [applyClass]="true"></svg-icon>
-            <span i18n>Duplicate</span>
+            <span>{{flowActionsUiInfo.duplicate.text}}</span>
           </div>
         </button>
-        <button mat-menu-item *ngIf="flow$ | async as flow" (click)="import()">
+        <button *ngIf="flow$ | async as flow" mat-menu-item (click)="import(flow)">
           <div class="ap-flex ap-gap-3 ap-items-center">
-            <svg-icon src="assets/img/custom/import.svg" class="ap-w-[20px] ap-h-[20px]" [applyClass]="true"></svg-icon>
-            <span i18n>Import</span>
+            <svg-icon [src]="flowActionsUiInfo.import.icon" [class]="flowActionsUiInfo.iconSizeTailWind"
+              [applyClass]="true"></svg-icon>
+            <span i18n>{{flowActionsUiInfo.import.text}}</span>
           </div>
         </button>
         <button mat-menu-item *ngIf="flow$ | async as flow" (click)="download(flow.id)">
           <div class="ap-flex ap-gap-3 ap-items-center">
-            <svg-icon src="assets/img/custom/download.svg" class="ap-w-[20px] ap-h-[20px]"
+            <svg-icon [class]="flowActionsUiInfo.iconSizeTailWind" [src]="flowActionsUiInfo.export.icon"
               [applyClass]="true"></svg-icon>
-            <span i18n>Export</span>
+            <span i18n>{{flowActionsUiInfo.export.text}}</span>
           </div>
         </button>
-        <ap-share-flow-template-dialog></ap-share-flow-template-dialog>
+        <ap-share-flow-template-dialog *ngIf="flow$ | async as flow" [flow]="flow"></ap-share-flow-template-dialog>
+        <app-push-flow-to-git-button *ngIf="flow$ | async as flow" [flow]="flow"></app-push-flow-to-git-button>
+
         <ng-container *ngIf="(showNavigation$ | async )">
           <button mat-menu-item *ngIf="flow$ | async as flow" (click)="deleteFlow(flow)">
             <div class="ap-flex ap-gap-3 ap-items-center">
-              <svg-icon src="assets/img/custom/trash.svg" class="ap-fill-danger ap-w-[20px] ap-h-[20px]"
-                [applyClass]="true"></svg-icon>
-              <span class="ap-text-danger" i18n>Delete</span>
+              <svg-icon [src]="flowActionsUiInfo.delete.icon"
+                [class]="'ap-fill-danger '+ flowActionsUiInfo.iconSizeTailWind" [applyClass]="true"></svg-icon>
+              <span class="ap-text-danger">{{flowActionsUiInfo.delete.text}}</span>
             </div>
           </button>
         </ng-container>
-
       </mat-menu>
     </div>
 
     <div class="ap-flex-grow"></div>
     <div class="ap-flex ap-items-center ap-gap-2">
       <app-support class="ap-z-50 ap-flex ap-items-center"></app-support>
-      <app-version-history-button></app-version-history-button>
-
-      <ng-container *ngIf="(isInDebugMode$ | async) === false">
+      <app-runs-button></app-runs-button>
+      <app-version-history-button *ngIf="(isInDebugMode$ | async) === false"></app-version-history-button>
+      <ng-container *ngIf="(isInDebugMode$ | async) === false ">
         <div class="ap-flex ap-items-center ap-gap-1">
           <ng-container *ngIf="hasFlowBeenPublished$ | async">
             <ng-container *ngIf="flowStatus$ | async as status">
-              <app-toggle-instance-state [flowStatus]="status"></app-toggle-instance-state>
+              <app-toggle-instance-state *ngIf="(isInReadOnlyMode$ | async)=== false"
+                [flowStatus]="status"></app-toggle-instance-state>
             </ng-container>
           </ng-container>
 
         </div>
-        <app-publish-button></app-publish-button>
-        <ap-user-avatar *ngIf="(isInEmbedded$ | async) === undefined || (isInEmbedded$ | async) === false "
-          class="ap-ml-[16px]"></ap-user-avatar>
+
+
       </ng-container>
+      <app-publish-or-edit-flow-button></app-publish-or-edit-flow-button>
+      <ap-user-avatar *ngIf="(isInEmbedded$ | async) === undefined || (isInEmbedded$ | async) === false "
+        class="ap-ml-[16px]"></ap-user-avatar>
     </div>
   </div>
 </nav>

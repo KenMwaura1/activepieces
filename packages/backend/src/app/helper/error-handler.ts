@@ -18,6 +18,7 @@ export const errorHandler = async (
             [ErrorCode.INVALID_API_KEY]: StatusCodes.UNAUTHORIZED,
             [ErrorCode.INVALID_BEARER_TOKEN]: StatusCodes.UNAUTHORIZED,
             [ErrorCode.QUOTA_EXCEEDED]: StatusCodes.PAYMENT_REQUIRED,
+            [ErrorCode.FEATURE_DISABLED]: StatusCodes.PAYMENT_REQUIRED,
             [ErrorCode.PERMISSION_DENIED]: StatusCodes.FORBIDDEN,
             [ErrorCode.ENTITY_NOT_FOUND]: StatusCodes.NOT_FOUND,
             [ErrorCode.EXISTING_USER]: StatusCodes.CONFLICT,
@@ -26,7 +27,10 @@ export const errorHandler = async (
             [ErrorCode.INVALID_CREDENTIALS]: StatusCodes.UNAUTHORIZED,
             [ErrorCode.EMAIL_IS_NOT_VERIFIED]: StatusCodes.FORBIDDEN,
             [ErrorCode.USER_IS_INACTIVE]: StatusCodes.FORBIDDEN,
+            [ErrorCode.DOMAIN_NOT_ALLOWED]: StatusCodes.FORBIDDEN,
+            [ErrorCode.EMAIL_AUTH_DISABLED]: StatusCodes.FORBIDDEN,
             [ErrorCode.INVALID_OTP]: StatusCodes.GONE,
+            [ErrorCode.VALIDATION]: StatusCodes.CONFLICT,
             [ErrorCode.INVITATION_ONLY_SIGN_UP]: StatusCodes.FORBIDDEN,
             [ErrorCode.AUTHENTICATION]: StatusCodes.UNAUTHORIZED,
         }

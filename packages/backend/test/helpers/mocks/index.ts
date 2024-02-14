@@ -1,4 +1,4 @@
-import { KeyAlgorithm, SigningKey, Platform, OAuthApp, FilteredPieceBehavior, CustomDomain, CustomDomainStatus, OtpModel, OtpType, OtpState, ProjectMember, ApiKey, ProjectMemberRole, ProjectMemberStatus } from '@activepieces/ee-shared'
+import { KeyAlgorithm, SigningKey, Platform, OAuthApp, FilteredPieceBehavior, CustomDomain, CustomDomainStatus, OtpModel, OtpType, OtpState, ProjectMember, ApiKey, ProjectMemberRole, ProjectMemberStatus, GitRepo, ApplicationEvent, ApplicationEventName } from '@activepieces/ee-shared'
 import { UserStatus, User, apId, Project, NotificationStatus, ProjectType, PieceType, PackageType, Flow, FlowStatus, FlowVersion, TriggerType, FlowVersionState, FlowTemplate, TemplateType, FlowRun, ExecutionOutputStatus, RunEnvironment } from '@activepieces/shared'
 import { faker } from '@faker-js/faker'
 import { PieceMetadataSchema } from '../../../src/app/pieces/piece-metadata-entity'
@@ -73,18 +73,36 @@ export const createMockProject = (project?: Partial<Project>): Project => {
     }
 }
 
+export const createMockGitRepo = (gitRepo?: Partial<GitRepo>): GitRepo => {
+    return {
+        id: gitRepo?.id ?? apId(),
+        created: gitRepo?.created ?? faker.date.recent().toISOString(),
+        updated: gitRepo?.updated ?? faker.date.recent().toISOString(),
+        projectId: gitRepo?.projectId ?? apId(),
+        remoteUrl: gitRepo?.remoteUrl ?? `git@${faker.internet.url()}`,
+        sshPrivateKey: gitRepo?.sshPrivateKey ?? faker.internet.password(),
+        branch: gitRepo?.branch ?? faker.lorem.word(),
+    }
+}
+
 export const createMockPlatform = (platform?: Partial<Platform>): Platform => {
     return {
         id: platform?.id ?? apId(),
         created: platform?.created ?? faker.date.recent().toISOString(),
         updated: platform?.updated ?? faker.date.recent().toISOString(),
         ownerId: platform?.ownerId ?? apId(),
+        enforceAllowedAuthDomains: platform?.enforceAllowedAuthDomains ?? false,
+        federatedAuthProviders: platform?.federatedAuthProviders ?? {},
+        allowedAuthDomains: platform?.allowedAuthDomains ?? [],
         name: platform?.name ?? faker.lorem.word(),
+        auditLogEnabled: platform?.auditLogEnabled ?? false,
         primaryColor: platform?.primaryColor ?? faker.color.rgb(),
         logoIconUrl: platform?.logoIconUrl ?? faker.image.urlPlaceholder(),
         fullLogoUrl: platform?.fullLogoUrl ?? faker.image.urlPlaceholder(),
+        emailAuthEnabled: platform?.emailAuthEnabled ?? true,
         favIconUrl: platform?.favIconUrl ?? faker.image.urlPlaceholder(),
         filteredPieceNames: platform?.filteredPieceNames ?? [],
+        ssoEnabled: platform?.ssoEnabled ?? faker.datatype.boolean(),
         filteredPieceBehavior: platform?.filteredPieceBehavior ?? faker.helpers.enumValue(FilteredPieceBehavior),
         smtpHost: platform?.smtpHost ?? faker.internet.domainName(),
         smtpPort: platform?.smtpPort ?? faker.internet.port(),
@@ -93,6 +111,7 @@ export const createMockPlatform = (platform?: Partial<Platform>): Platform => {
         smtpUseSSL: platform?.smtpUseSSL ?? faker.datatype.boolean(),
         smtpSenderEmail: platform?.smtpSenderEmail ?? faker.internet.email(),
         privacyPolicyUrl: platform?.privacyPolicyUrl ?? faker.internet.url(),
+        gitSyncEnabled: platform?.gitSyncEnabled ?? faker.datatype.boolean(),
         termsOfServiceUrl: platform?.termsOfServiceUrl ?? faker.internet.url(),
         embeddingEnabled: platform?.embeddingEnabled ?? faker.datatype.boolean(),
         cloudAuthEnabled: platform?.cloudAuthEnabled ?? faker.datatype.boolean(),
@@ -218,7 +237,7 @@ export const createMockPieceMetadata = (pieceMetadata?: Partial<Omit<PieceMetada
         logoUrl: pieceMetadata?.logoUrl ?? faker.image.urlPlaceholder(),
         description: pieceMetadata?.description ?? faker.lorem.sentence(),
         projectId: pieceMetadata?.projectId,
-        directoryName: pieceMetadata?.directoryName,
+        directoryPath: pieceMetadata?.directoryPath,
         auth: pieceMetadata?.auth,
         platformId: pieceMetadata?.platformId,
         version: pieceMetadata?.version ?? faker.system.semver(),
@@ -229,6 +248,21 @@ export const createMockPieceMetadata = (pieceMetadata?: Partial<Omit<PieceMetada
         pieceType: pieceMetadata?.pieceType ?? faker.helpers.enumValue(PieceType),
         packageType: pieceMetadata?.packageType ?? faker.helpers.enumValue(PackageType),
         archiveId: pieceMetadata?.archiveId,
+    }
+}
+
+export const createAuditEvent = (auditEvent: Partial<ApplicationEvent>) => {
+    return {
+        id: auditEvent.id ?? apId(),
+        created: auditEvent.created ?? faker.date.recent().toISOString(),
+        updated: auditEvent.updated ?? faker.date.recent().toISOString(),
+        ip: auditEvent.ip ?? faker.internet.ip(),
+        projectDisplayName: auditEvent.projectDisplayName ?? faker.lorem.word(),
+        platformId: auditEvent.platformId,
+        userId: auditEvent.userId,
+        userEmail: auditEvent.userEmail ?? faker.internet.email(),
+        action: auditEvent.action ?? faker.helpers.enumValue(ApplicationEventName),
+        data: auditEvent.data ?? {},
     }
 }
 

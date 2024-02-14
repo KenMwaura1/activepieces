@@ -2,7 +2,7 @@ import { LoopOnItemsAction, LoopStepOutput, isNil } from '@activepieces/shared'
 import { BaseExecutor } from './base-executor'
 import { ExecutionVerdict, FlowExecutorContext } from './context/flow-execution-context'
 import { flowExecutor } from './flow-executor'
-import { EngineConstantData } from './context/engine-constants-data'
+import { EngineConstants } from './context/engine-constants'
 
 type LoopOnActionResolvedSettings = {
     items: readonly unknown[]
@@ -16,7 +16,7 @@ export const loopExecutor: BaseExecutor<LoopOnItemsAction> = {
     }: {
         action: LoopOnItemsAction
         executionState: FlowExecutorContext
-        constants: EngineConstantData
+        constants: EngineConstants
     }) {
         const { resolvedInput, censoredInput } = await constants.variableService.resolve<LoopOnActionResolvedSettings>({
             unresolvedInput: {
@@ -24,32 +24,36 @@ export const loopExecutor: BaseExecutor<LoopOnItemsAction> = {
             },
             executionState,
         })
-
-        let stepOutput = LoopStepOutput.init({
+        const previousStepOutput = executionState.getLoopStepOutput({ stepName: action.name })
+        let stepOutput = previousStepOutput ?? LoopStepOutput.init({
             input: censoredInput,
         })
-
         let newExecutionContext = executionState.upsertStep(action.name, stepOutput)
         const firstLoopAction = action.firstLoopAction
 
 
         for (let i = 0; i < resolvedInput.items.length; ++i) {
             const newCurrentPath = newExecutionContext.currentPath.loopIteration({ loopName: action.name, iteration: i })
-            stepOutput = stepOutput.addIteration({ index: i + 1, item: resolvedInput.items[i] })
 
-            newExecutionContext = newExecutionContext.upsertStep(action.name, stepOutput).setCurrentPath(newCurrentPath)
+            stepOutput = stepOutput.setItemAndIndex({ item: resolvedInput.items[i], index: i + 1 })
+            const addEmptyIteration = !stepOutput.hasIteration(i)
+            if (addEmptyIteration) {
+                stepOutput = stepOutput.addIteration()
+                newExecutionContext = newExecutionContext.upsertStep(action.name, stepOutput)
+            }
+            newExecutionContext = newExecutionContext.setCurrentPath(newCurrentPath)
             if (!isNil(firstLoopAction) && !constants.testSingleStepMode) {
                 newExecutionContext = await flowExecutor.execute({
                     action: firstLoopAction,
                     executionState: newExecutionContext,
                     constants,
                 })
-            }   
-    
+            }
+
             if (newExecutionContext.verdict !== ExecutionVerdict.RUNNING) {
                 return newExecutionContext
             }
-    
+
             newExecutionContext = newExecutionContext.setCurrentPath(newExecutionContext.currentPath.removeLast())
             if (constants.testSingleStepMode) {
                 break

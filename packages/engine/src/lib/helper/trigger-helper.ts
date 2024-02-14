@@ -1,4 +1,4 @@
-import { AUTHENTICATION_PROPERTY_NAME, ApEdition, EventPayload, ExecuteTriggerOperation, ExecuteTriggerResponse, PieceTrigger, ScheduleOptions, TriggerHookType } from '@activepieces/shared'
+import { AUTHENTICATION_PROPERTY_NAME, ApEdition, EventPayload, ExecuteTriggerOperation, ExecuteTriggerResponse, PieceTrigger, ScheduleOptions, TriggerHookType, assertEqual } from '@activepieces/shared'
 import { createContextStore } from '../services/storage.service'
 import { variableService } from '../services/variable-service'
 import { isValidCron } from 'cron-validator'
@@ -6,6 +6,7 @@ import { PiecePropertyMap, StaticPropsValue, TriggerStrategy } from '@activepiec
 import { createFilesService } from '../services/files.service'
 import { FlowExecutorContext } from '../handler/context/flow-execution-context'
 import { pieceLoader } from './piece-loader'
+import { EngineConstants } from '../handler/context/engine-constants'
 
 type Listener = {
     events: string[]
@@ -14,10 +15,10 @@ type Listener = {
 }
 
 export const triggerHelper = {
-    async executeTrigger({ params, piecesSource }: { piecesSource: string, params: ExecuteTriggerOperation<TriggerHookType> }): Promise<ExecuteTriggerResponse<TriggerHookType>> {
+    async executeTrigger({ params, constants }: ExecuteTriggerParams): Promise<ExecuteTriggerResponse<TriggerHookType>> {
         const { pieceName, pieceVersion, triggerName, input } = (params.flowVersion.trigger as PieceTrigger).settings
 
-        const piece = await pieceLoader.loadPieceOrThrow({ pieceName, pieceVersion, piecesSource })
+        const piece = await pieceLoader.loadPieceOrThrow({ pieceName, pieceVersion, piecesSource: constants.piecesSource })
         const trigger = piece.getTrigger(triggerName)
 
         if (trigger === undefined) {
@@ -70,6 +71,7 @@ export const triggerHelper = {
             payload: params.triggerPayload ?? {},
             project: {
                 id: params.projectId,
+                externalId: constants.externalProjectId,
             },
         }
         switch (params.hookType) {
@@ -81,6 +83,12 @@ export const triggerHelper = {
                 return {
                     listeners: appListeners,
                     scheduleOptions: trigger.type === TriggerStrategy.POLLING ? scheduleOptions : undefined,
+                }
+            case TriggerHookType.RENEW:
+                assertEqual(trigger.type, TriggerStrategy.WEBHOOK, 'triggerType', 'WEBHOOK')
+                await trigger.onRenew(context)
+                return {
+                    success: true,
                 }
             case TriggerHookType.HANDSHAKE: {
                 try {
@@ -184,4 +192,9 @@ export const triggerHelper = {
             }
         }
     },
+}
+
+type ExecuteTriggerParams = {
+    params: ExecuteTriggerOperation<TriggerHookType>
+    constants: EngineConstants
 }

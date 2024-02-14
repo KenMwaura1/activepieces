@@ -37,18 +37,19 @@ import {
   PropertyType,
   OAuth2Property,
   OAuth2Props,
+  StaticDropdownProperty,
 } from '@activepieces/pieces-framework';
 import { connectionNameRegex } from '../utils';
 
 interface AuthConfigSettings {
   name: FormControl<string>;
-  value: FormControl<OAuth2PopupResponse>;
+  value: FormControl<OAuth2PopupResponse | null>;
   props: UntypedFormGroup;
 }
 
 export const USE_MY_OWN_CREDENTIALS = 'USE_MY_OWN_CREDENTIALS';
 export type ManagedOAuth2ConnectionDialogData = {
-  pieceAuthProperty: OAuth2Property<boolean, OAuth2Props>;
+  pieceAuthProperty: OAuth2Property<OAuth2Props>;
   pieceName: string;
   connectionToUpdate?: AppConnectionWithoutSensitiveData;
   clientId: string;
@@ -127,13 +128,9 @@ export class ManagedOAuth2ConnectionDialogComponent implements OnInit {
           ],
         }
       ),
-      value: new FormControl(
-        { code: '' },
-        {
-          nonNullable: true,
-          validators: Validators.required,
-        }
-      ),
+      value: new FormControl<OAuth2PopupResponse | null>(null, {
+        validators: Validators.required,
+      }),
       props: this.fb.group(propsControls),
     });
     if (this.dialogData.connectionToUpdate) {
@@ -160,14 +157,12 @@ export class ManagedOAuth2ConnectionDialogComponent implements OnInit {
       ? this.dialogData.connectionToUpdate.name
       : this.settingsForm.controls.name.value;
     const popupResponse = this.settingsForm.value.value!;
-    const { tokenUrl } = this.getTokenAndUrl();
     if (this.dialogData.connectionType === AppConnectionType.CLOUD_OAUTH2) {
       const newConnection: UpsertCloudOAuth2Request = {
         projectId: this.authenticationService.getProjectId(),
         pieceName: this.dialogData.pieceName,
         type: AppConnectionType.CLOUD_OAUTH2,
         value: {
-          token_url: tokenUrl,
           code: popupResponse.code,
           authorization_method:
             this.dialogData.pieceAuthProperty.authorizationMethod,
@@ -188,7 +183,6 @@ export class ManagedOAuth2ConnectionDialogComponent implements OnInit {
         pieceName: this.dialogData.pieceName,
         type: AppConnectionType.PLATFORM_OAUTH2,
         value: {
-          token_url: tokenUrl,
           code: popupResponse.code,
           authorization_method:
             this.dialogData.pieceAuthProperty.authorizationMethod,
@@ -263,7 +257,7 @@ export class ManagedOAuth2ConnectionDialogComponent implements OnInit {
   }
 
   get cloudConnectionPopupSettings(): OAuth2PopupParams {
-    const { authUrl } = this.getTokenAndUrl();
+    const { authUrl } = this.getAuthUrl();
     return {
       auth_url: authUrl,
       client_id: this._managedOAuth2ConnectionPopupSettings.client_id,
@@ -274,16 +268,11 @@ export class ManagedOAuth2ConnectionDialogComponent implements OnInit {
     };
   }
 
-  getTokenAndUrl() {
+  getAuthUrl() {
     let authUrl = this.dialogData.pieceAuthProperty.authUrl;
-    let tokenUrl = this.dialogData.pieceAuthProperty.tokenUrl;
     if (this.dialogData.pieceAuthProperty.props) {
       Object.keys(this.dialogData.pieceAuthProperty.props).forEach((key) => {
         authUrl = authUrl.replaceAll(
-          `{${key}}`,
-          this.settingsForm.controls.props.value[key]
-        );
-        tokenUrl = tokenUrl.replaceAll(
           `{${key}}`,
           this.settingsForm.controls.props.value[key]
         );
@@ -291,11 +280,14 @@ export class ManagedOAuth2ConnectionDialogComponent implements OnInit {
     }
     return {
       authUrl: authUrl,
-      tokenUrl: tokenUrl,
     };
   }
 
   dropdownCompareWithFunction = (opt: any, formControlValue: any) => {
     return formControlValue && deepEqual(opt, formControlValue);
   };
+
+  castToStaticDropdown(t: unknown) {
+    return t as StaticDropdownProperty<unknown, true>;
+  }
 }

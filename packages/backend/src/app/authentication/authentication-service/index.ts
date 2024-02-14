@@ -9,16 +9,14 @@ import { system } from '../../helper/system/system'
 import { SystemProp } from '../../helper/system/system-prop'
 import { logger } from '../../helper/logger'
 import { telemetry } from '../../helper/telemetry.utils'
+import { Provider } from './hooks/authentication-service-hooks'
 
 const SIGN_UP_ENABLED = system.getBoolean(SystemProp.SIGN_UP_ENABLED) ?? false
 
 export const authenticationService = {
     async signUp(params: SignUpParams): Promise<AuthenticationResponse> {
         await assertSignUpIsEnabled()
-        await hooks.get().preSignUp({
-            email: params.email,
-            platformId: params.platformId,
-        })
+        await hooks.get().preSignUp(params)
         const user = await createUser(params)
 
         return this.signUpResponse({
@@ -28,6 +26,7 @@ export const authenticationService = {
     },
 
     async signIn(request: SignInParams): Promise<AuthenticationResponse> {
+        await hooks.get().preSignIn(request)
         const user = await userService.getByPlatformAndEmail({
             platformId: request.platformId,
             email: request.email,
@@ -69,7 +68,10 @@ export const authenticationService = {
             platformId: params.platformId,
         }
 
-        return this.signUp(newUser)
+        return this.signUp({
+            ...newUser,
+            provider: Provider.FEDERATED,
+        })
     },
 
     async signUpResponse({ user, referringUserId }: SignUpResponseParams): Promise<AuthenticationResponse> {
@@ -213,7 +215,7 @@ const sendTelemetry = async ({ user, project }: SendTelemetryParams): Promise<vo
 }
 
 async function saveNewsLetterSubscriber(user: User): Promise<void> {
-    const isPlatformUserOrNotSubscribed = !isNil(user.platformId) || !user.newsLetter
+    const isPlatformUserOrNotSubscribed = (!isNil(user.platformId) && !flagService.isCloudPlatform(user.platformId)) || !user.newsLetter
     const environment = system.get(SystemProp.ENVIRONMENT)
     if (isPlatformUserOrNotSubscribed || environment !== ApEnvironment.PRODUCTION) {
         return
@@ -251,12 +253,14 @@ type SignUpParams = {
     verified: boolean
     platformId: string | null
     referringUserId?: string
+    provider: Provider
 }
 
 type SignInParams = {
     email: string
     password: string
     platformId: string | null
+    provider: Provider
 }
 
 type AssertPasswordsMatchParams = {

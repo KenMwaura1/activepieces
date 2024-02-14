@@ -26,7 +26,7 @@ import { captureException, logger } from '../../helper/logger'
 import { isNil } from '@activepieces/shared'
 import { engineHelper } from '../../helper/engine-helper'
 import { acquireLock } from '../../helper/lock'
-import { pieceMetadataService } from '../../pieces/piece-metadata-service'
+import { getPiecePackage, pieceMetadataService } from '../../pieces/piece-metadata-service'
 import { appConnectionsHooks } from './app-connection-hooks'
 import { oauth2Util } from './oauth2/oauth2-util'
 import { oauth2Handler } from './oauth2'
@@ -173,43 +173,63 @@ const validateConnectionValue = async (
     params: ValidateConnectionValueParams,
 ): Promise<AppConnectionValue> => {
     const { connection, projectId } = params
-
+   
     switch (connection.value.type) {
-        case AppConnectionType.PLATFORM_OAUTH2:
+        case AppConnectionType.PLATFORM_OAUTH2:{
+            const tokenUrl = await oauth2Util.getOAuth2TokenUrl({
+                projectId,
+                pieceName: connection.pieceName,
+                props: connection.value.props,
+            })
             return oauth2Handler[connection.value.type].claim({
                 projectId,
                 pieceName: connection.pieceName,
                 request: {
                     grantType: OAuth2GrantType.AUTHORIZATION_CODE,
                     code: connection.value.code,
+                    tokenUrl,
                     clientId: connection.value.client_id,
-                    tokenUrl: connection.value.token_url!,
+                    props: connection.value.props,
                     authorizationMethod: connection.value.authorization_method,
                     codeVerifier: connection.value.code_challenge,
                     redirectUrl: connection.value.redirect_url,
                 },
             })
-        case AppConnectionType.CLOUD_OAUTH2:
+        }
+        case AppConnectionType.CLOUD_OAUTH2:{
+            const tokenUrl = await oauth2Util.getOAuth2TokenUrl({
+                projectId,
+                pieceName: connection.pieceName,
+                props: connection.value.props,
+            })
             return oauth2Handler[connection.value.type].claim({
                 projectId,
                 pieceName: connection.pieceName,
                 request: {
+                    tokenUrl,
                     grantType: OAuth2GrantType.AUTHORIZATION_CODE,
                     code: connection.value.code,
+                    props: connection.value.props,
                     clientId: connection.value.client_id,
-                    tokenUrl: connection.value.token_url!,
                     authorizationMethod: connection.value.authorization_method,
                     codeVerifier: connection.value.code_challenge,
                 },
             })
-        case AppConnectionType.OAUTH2:
+        }
+        case AppConnectionType.OAUTH2:{
+            const tokenUrl = await oauth2Util.getOAuth2TokenUrl({
+                projectId,
+                pieceName: connection.pieceName,
+                props: connection.value.props,
+            })
             return oauth2Handler[connection.value.type].claim({
                 projectId,
                 pieceName: connection.pieceName,
                 request: {
+                    tokenUrl,
                     code: connection.value.code,
                     clientId: connection.value.client_id,
-                    tokenUrl: connection.value.token_url!,
+                    props: connection.value.props,
                     grantType: connection.value.grant_type!,
                     redirectUrl: connection.value.redirect_url,
                     clientSecret: connection.value.client_secret,
@@ -217,7 +237,7 @@ const validateConnectionValue = async (
                     codeVerifier: connection.value.code_challenge,
                 },
             })
-
+        }
         case AppConnectionType.CUSTOM_AUTH:
         case AppConnectionType.BASIC_AUTH:
         case AppConnectionType.SECRET_TEXT:
@@ -230,6 +250,7 @@ const validateConnectionValue = async (
 
     return connection.value
 }
+
 
 function decryptConnection(
     encryptedConnection: AppConnectionSchema,
@@ -253,13 +274,14 @@ const engineValidateAuth = async (
         version: undefined,
     })
 
+
     const engineResponse = await engineHelper.executeValidateAuth( {
-        piece: {
-            packageType: pieceMetadata.packageType,
-            pieceType: pieceMetadata.pieceType,
-            pieceName: pieceMetadata.name,
+        piece: await getPiecePackage(projectId, {
+            pieceName,
             pieceVersion: pieceMetadata.version,
-        },
+            pieceType: pieceMetadata.pieceType,
+            packageType: pieceMetadata.packageType,
+        }),
         auth,
         projectId,
     })

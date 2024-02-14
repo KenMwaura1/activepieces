@@ -6,10 +6,10 @@ import {
 } from '@angular/core';
 import { Router } from '@angular/router';
 import { Store } from '@ngrx/store';
-import { FolderActions } from '../../store/folders/folders.actions';
-import { EmbeddingService, NavigationService } from '@activepieces/ui/common';
-import { Observable, map, of, switchMap } from 'rxjs';
-import { ApEdition, ApFlagId, supportUrl } from '@activepieces/shared';
+import { FolderActions } from '@activepieces/ui/feature-folders-store';
+import { NavigationService } from '@activepieces/ui/common';
+import { Observable, map, of } from 'rxjs';
+import { ApFlagId, supportUrl } from '@activepieces/shared';
 import { DashboardService, FlagService } from '@activepieces/ui/common';
 
 type SideNavRoute = {
@@ -31,9 +31,8 @@ export class SidenavRoutesListComponent implements OnInit {
   showSupport$: Observable<boolean>;
   showDocs$: Observable<boolean>;
   showBilling$: Observable<boolean>;
-  isInEmbedding$: Observable<boolean>;
+  showGitSync: Observable<boolean>;
   sideNavRoutes$: Observable<SideNavRoute[]>;
-
   mainDashboardRoutes: SideNavRoute[] = [];
   platformDashboardRoutes: SideNavRoute[] = [
     {
@@ -78,11 +77,10 @@ export class SidenavRoutesListComponent implements OnInit {
     private store: Store,
     private flagServices: FlagService,
     private cd: ChangeDetectorRef,
-    private embeddingService: EmbeddingService,
     private dashboardService: DashboardService,
     private navigationService: NavigationService
   ) {
-    this.isInEmbedding$ = this.embeddingService.getIsInEmbedding$();
+    this.showGitSync = flagServices.isFlagEnabled(ApFlagId.SHOW_GIT_SYNC);
     this.logoUrl$ = this.flagServices
       .getLogos()
       .pipe(map((logos) => logos.logoIconUrl));
@@ -112,15 +110,13 @@ export class SidenavRoutesListComponent implements OnInit {
         icon: 'assets/img/custom/dashboard/members.svg',
         caption: $localize`Team`,
         route: 'team',
-        showInSideNav$: this.isInEmbedding$.pipe(
-          switchMap((embedded) => {
-            return this.flagServices.getEdition().pipe(
-              map((ed) => {
-                return ed !== ApEdition.COMMUNITY && !embedded;
-              })
-            );
-          })
-        ),
+        showInSideNav$: of(true),
+      },
+      {
+        icon: 'assets/img/custom/dashboard/settings.svg',
+        caption: $localize`Settings`,
+        route: 'settings',
+        showInSideNav$: this.showGitSync,
       },
     ];
   }

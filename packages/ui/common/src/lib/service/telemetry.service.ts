@@ -4,10 +4,10 @@ import {
   ApEnvironment,
   ApFlagId,
   TelemetryEvent,
-  User,
+  UserWithoutPassword,
 } from '@activepieces/shared';
 import { FlagService } from '../service/flag.service';
-import { Observable, map, take } from 'rxjs';
+import { Observable, map, of, switchMap, take } from 'rxjs';
 import { HttpClient } from '@angular/common/http';
 import { AuthenticationService } from './authentication.service';
 import { productFruits } from 'product-fruits';
@@ -22,7 +22,7 @@ export class TelemetryService {
     private http: HttpClient,
     private authService: AuthenticationService
   ) {}
-  init(user: User) {
+  init(user: UserWithoutPassword) {
     if (user !== null && user !== undefined) {
       this.flagService.getAllFlags().subscribe((flags) => {
         if (flags[ApFlagId.TELEMETRY_ENABLED] === true) {
@@ -73,17 +73,51 @@ export class TelemetryService {
     target: 'steps' | 'triggers' | 'both';
     insideTemplates: boolean;
   }) {
-    return this.http.post(
-      'https://cloud.activepieces.com/api/v1/webhooks/C6khe7pYMdiLPrBpVIWZg',
-      {
-        ...request,
-        email: this.authService.currentUser.email,
-      }
+    return this.isTelemetryEnabled().pipe(
+      switchMap((isTelemetryEnabled) => {
+        if (!isTelemetryEnabled) {
+          return of(void 0);
+        }
+        return this.http.post(
+          'https://cloud.activepieces.com/api/v1/webhooks/C6khe7pYMdiLPrBpVIWZg',
+          {
+            ...request,
+            email: this.authService.currentUser.email,
+          }
+        );
+      })
     );
   }
 
+  saveCopilotResult(request: { prompt: string; code: string }) {
+    this.isTelemetryEnabled()
+      .pipe(
+        switchMap((isTelemetryEnabled) => {
+          if (!isTelemetryEnabled) {
+            return of(false);
+          }
+          return this.http.post(
+            'https://cloud.activepieces.com/api/v1/webhooks/AOyJBLfd3Hvgwk6OdeDSq',
+            {
+              ...request,
+              email: this.authService.currentUser.email,
+            }
+          );
+        })
+      )
+      .subscribe();
+  }
+
+  private isTelemetryEnabled(): Observable<boolean> {
+    return this.flagService.getAllFlags().pipe(
+      take(1),
+      map((flags) => {
+        return flags[ApFlagId.TELEMETRY_ENABLED] === true;
+      })
+    );
+  }
   // BEGIN EE
-  initializePf(user: User) {
+  initializePf(user: UserWithoutPassword) {
     if (!this.productFruitsInitialized) {
       productFruits.init(
         'cLCwk9nBPS1DBBiE',
@@ -97,7 +131,7 @@ export class TelemetryService {
         },
         { disableLocationChangeDetection: false }
       );
-      productFruits.safeExec(($pf) => {
+      productFruits.safeExec(() => {
         console.log('PF is Initialized');
         this.productFruitsInitialized = true;
       });

@@ -16,7 +16,7 @@ import {
   FlowsActions,
   FlowsActionType,
   SingleFlowModifyingState,
-} from './flows.action';
+} from './flow.action';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { BuilderSelectors } from '../builder/builder.selector';
 import { UUID } from 'angular2-uuid';
@@ -34,28 +34,28 @@ import {
 import { RightSideBarType } from '../../model/enums/right-side-bar-type.enum';
 import { LeftSideBarType } from '../../model/enums/left-side-bar-type.enum';
 import { NO_PROPS } from '../../model/canvas-state';
-import { CollectionBuilderService } from '../../service/collection-builder.service';
 import {
   BuilderAutocompleteMentionsDropdownService,
   FlowService,
   environment,
+  FlowBuilderService,
 } from '@activepieces/ui/common';
 import { canvasActions } from '../builder/canvas/canvas.action';
 import { ViewModeActions } from '../builder/viewmode/view-mode.action';
 import { ViewModeEnum } from '../../model';
 import { HttpStatusCode } from '@angular/common/http';
 import { FlowStructureUtil } from '../../utils/flowStructureUtil';
+
 @Injectable()
 export class FlowsEffects {
   loadInitial$ = createEffect(() => {
     return this.actions$.pipe(
       ofType(BuilderActions.loadInitial),
-      switchMap(({ type, flow, run, folder, publishedVersion }) => {
+      switchMap(({ type, flow, run, publishedVersion }) => {
         return of(
           FlowsActions.setInitial({
             flow: { ...flow, publishedFlowVersion: publishedVersion },
             run,
-            folder,
           })
         );
       }),
@@ -337,30 +337,51 @@ export class FlowsEffects {
     saveRequestId: UUID;
   }): Observable<PopulatedFlow> {
     const update$ = this.flowService.update(request.flow.id, request.operation);
-    const updateTap = tap((updatedFlow: PopulatedFlow) => {
-      this.store.dispatch(
-        FlowsActions.savedSuccess({
-          saveRequestId: request.saveRequestId,
-          flow: updatedFlow,
+
+    const saveSuccessEffect = (obs$: Observable<PopulatedFlow>) =>
+      obs$.pipe(
+        concatLatestFrom(() => {
+          return [
+            this.store.select(BuilderSelectors.selectReadOnly),
+            this.store.select(BuilderSelectors.selectPublishedFlowVersion),
+            this.store.select(BuilderSelectors.selectViewedVersion),
+          ];
+        }),
+        tap(
+          ([
+            updatedFlow,
+            readOnly,
+            publishedFlowVersion,
+            selectViewedVersion,
+          ]) => {
+            if (
+              !readOnly &&
+              publishedFlowVersion?.id === selectViewedVersion.id
+            ) {
+              this.store.dispatch(
+                canvasActions.updateViewedVersionId({
+                  versionId: updatedFlow.version.id,
+                })
+              );
+            }
+          }
+        ),
+        map(([updatedFlow]) => updatedFlow),
+        tap((updatedFlow: PopulatedFlow) => {
+          this.store.dispatch(
+            FlowsActions.savedSuccess({
+              saveRequestId: request.saveRequestId,
+              flow: updatedFlow,
+            })
+          );
+          this.setLastSaveDate();
         })
       );
-      const now = new Date();
-      const nowDate = now.toLocaleDateString('en-us', {
-        month: 'long',
-        day: 'numeric',
-        year: 'numeric',
-      });
-      const nowTime = `${now.getHours().toString().padEnd(2, '0')}:${now
-        .getMinutes()
-        .toString()
-        .padStart(2, '0')}`;
-      this.pieceBuilderService.lastSuccessfulSaveDate = `Last saved on ${nowDate} at ${nowTime}.`;
-    });
     if (environment.production) {
-      return update$.pipe(updateTap);
+      return update$.pipe(saveSuccessEffect.bind(this));
     }
     //so in development mode the publish button doesn't flicker constantly and cause us to have epilieptic episodes
-    return update$.pipe(delay(150), updateTap);
+    return update$.pipe(delay(150), saveSuccessEffect.bind(this));
   }
 
   publishFailed$ = createEffect(
@@ -400,15 +421,16 @@ export class FlowsEffects {
       ),
       switchMap(([_, flow]) => {
         return this.flowService
-          .publish({
-            id: flow.id,
+          .update(flow.id, {
+            type: FlowOperationType.LOCK_AND_PUBLISH,
+            request: {},
           })
           .pipe(
             map((flow) => {
               return FlowsActions.publishSuccess({
                 status: flow.status,
                 showSnackbar: true,
-                publishedFlowVersionId: flow.publishedVersionId,
+                publishedFlowVersionId: flow.publishedVersionId!,
               });
             }),
             catchError((err) => {
@@ -428,8 +450,11 @@ export class FlowsEffects {
       ),
       switchMap(([_, flow]) => {
         return this.flowService
-          .updateStatus(flow.id, {
-            status: FlowStatus.ENABLED,
+          .update(flow.id, {
+            type: FlowOperationType.CHANGE_STATUS,
+            request: {
+              status: FlowStatus.ENABLED,
+            },
           })
           .pipe(
             switchMap((flow) => {
@@ -456,8 +481,11 @@ export class FlowsEffects {
       ),
       switchMap(([_, flow]) => {
         return this.flowService
-          .updateStatus(flow.id, {
-            status: FlowStatus.DISABLED,
+          .update(flow.id, {
+            type: FlowOperationType.CHANGE_STATUS,
+            request: {
+              status: FlowStatus.DISABLED,
+            },
           })
           .pipe(
             switchMap((flow) => {
@@ -520,11 +548,25 @@ export class FlowsEffects {
   });
 
   constructor(
-    private pieceBuilderService: CollectionBuilderService,
+    private pieceBuilderService: FlowBuilderService,
     private flowService: FlowService,
     private store: Store,
     private actions$: Actions,
     private snackBar: MatSnackBar,
     private builderAutocompleteService: BuilderAutocompleteMentionsDropdownService
   ) {}
+
+  private setLastSaveDate() {
+    const now = new Date();
+    const nowDate = now.toLocaleDateString('en-us', {
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric',
+    });
+    const nowTime = `${now.getHours().toString().padEnd(2, '0')}:${now
+      .getMinutes()
+      .toString()
+      .padStart(2, '0')}`;
+    this.pieceBuilderService.lastSuccessfulSaveDate = `Last saved on ${nowDate} at ${nowTime}.`;
+  }
 }

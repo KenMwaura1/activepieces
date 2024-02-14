@@ -6,9 +6,10 @@ import {
   AreThereFlowsResovler,
 } from './resolvers/are-there-flows.resolver';
 import { ConnectionsTableComponent } from './pages/connections-table/connections-table.component';
-import { FoldersResolver } from './resolvers/folders.resolver';
+import { FoldersResolver } from '@activepieces/ui/feature-folders-store';
 import { DashboardContainerComponent } from './dashboard-container.component';
 import {
+  isFeatureFlagEnabledResolver,
   showBasedOnFlagGuard,
   showPlatformSettingsGuard,
 } from '@activepieces/ui/common';
@@ -16,6 +17,8 @@ import { PlansPageComponent } from '@activepieces/ee-billing-ui';
 import { ProjectMembersTableComponent } from '@activepieces/ee/project-members';
 import { CommunityPiecesTableComponent } from '@activepieces/ui/feature-pieces';
 import { ApFlagId } from '@activepieces/shared';
+import { SyncProjectComponent } from './pages/sync-project/sync-project.component';
+import { RepoResolver } from './resolvers/repo.resolver';
 
 export const DashboardLayoutRouting: Routes = [
   {
@@ -44,9 +47,13 @@ export const DashboardLayoutRouting: Routes = [
         data: {
           title: $localize`Team`,
         },
-        canActivate: [showBasedOnFlagGuard(ApFlagId.PROJECT_MEMBERS_ENABLED)],
         path: 'team',
         component: ProjectMembersTableComponent,
+        resolve: {
+          [ApFlagId.PROJECT_MEMBERS_ENABLED]: isFeatureFlagEnabledResolver(
+            ApFlagId.PROJECT_MEMBERS_ENABLED
+          ),
+        },
       },
       {
         data: {
@@ -63,6 +70,15 @@ export const DashboardLayoutRouting: Routes = [
         path: 'connections',
         pathMatch: 'full',
         component: ConnectionsTableComponent,
+      },
+      {
+        data: {
+          title: $localize`Settings`,
+        },
+        path: 'settings',
+        pathMatch: 'full',
+        component: SyncProjectComponent,
+        resolve: { repo: RepoResolver },
       },
       {
         data: {

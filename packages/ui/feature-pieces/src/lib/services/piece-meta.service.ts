@@ -5,6 +5,8 @@ import {
   AddPieceRequestBody,
   PieceOptionRequest,
   TriggerType,
+  ApFlagId,
+  PieceScope,
 } from '@activepieces/shared';
 import { HttpClient } from '@angular/common/http';
 import {
@@ -18,7 +20,7 @@ import {
   take,
 } from 'rxjs';
 import semver from 'semver';
-import { FlagService, environment } from '@activepieces/ui/common';
+import { AuthenticationService, FlagService, environment } from '@activepieces/ui/common';
 import { FlowItemDetails } from '@activepieces/ui/common';
 import {
   DropdownState,
@@ -27,7 +29,10 @@ import {
   TriggerStrategy,
 } from '@activepieces/pieces-framework';
 import { isNil } from '@activepieces/shared';
-import { PieceMetadataModel, PieceMetadataModelSummary } from '@activepieces/ui/common';
+import {
+  PieceMetadataModel,
+  PieceMetadataModelSummary,
+} from '@activepieces/ui/common';
 
 type TriggersMetadata = Record<string, TriggerBase>;
 
@@ -44,7 +49,7 @@ export const CORE_PIECES_ACTIONS_NAMES = [
   '@activepieces/piece-text-helper',
   '@activepieces/piece-date-helper',
   '@activepieces/piece-file-helper',
-  '@activepieces/piece-math-helper'
+  '@activepieces/piece-math-helper',
 ];
 export const corePieceIconUrl = (pieceName: string) =>
   `assets/img/custom/piece/${pieceName.replace(
@@ -101,23 +106,22 @@ export class PieceMetadataService {
     },
   ];
 
-  constructor(private http: HttpClient, private flagsService: FlagService) { }
+  constructor(private http: HttpClient, private flagsService: FlagService, private authenticationService: AuthenticationService) { }
 
   private getCacheKey(pieceName: string, pieceVersion: string): string {
     return `${pieceName}-${pieceVersion}`;
   }
   private filterAppWebhooks(
+    pieceName: string,
     triggersMap: TriggersMetadata,
-    edition: ApEdition
+    supportedApps: string[]
   ): TriggersMetadata {
-    if (edition !== ApEdition.COMMUNITY) {
-      return triggersMap;
-    }
 
     const triggersList = Object.entries(triggersMap);
 
     const filteredTriggersList = triggersList.filter(
-      ([, trigger]) => trigger.type !== TriggerStrategy.APP_WEBHOOK
+      ([, trigger]) => trigger.type !== TriggerStrategy.APP_WEBHOOK ||
+        supportedApps.includes(pieceName)
     );
 
     return Object.fromEntries(filteredTriggersList);
@@ -149,13 +153,14 @@ export class PieceMetadataService {
     formData.set('packageType', params.packageType);
     formData.set('pieceName', params.pieceName);
     formData.set('pieceVersion', params.pieceVersion);
-
+    formData.set('scope', params.scope)
+    if (params.scope === PieceScope.PROJECT) {
+      formData.set('projectId', this.authenticationService.getProjectId())
+    }
     if (params.pieceArchive) {
       formData.set('pieceArchive', params.pieceArchive);
     }
-    if (params.platformId) {
-      formData.set('platformId', params.platformId);
-    }
+
     return this.http.post<PieceMetadataModel>(
       `${environment.apiUrl}/pieces`,
       formData
@@ -213,9 +218,12 @@ export class PieceMetadataService {
       return this.piecesCache.get(cacheKey)!;
     }
 
-    const pieceMetadata$ = this.edition$.pipe(
+    const pieceMetadata$ = combineLatest({
+      edition: this.edition$,
+      supportedApps: this.flagsService.getArrayFlag(ApFlagId.SUPPORTED_APP_WEBHOOKS),
+    }).pipe(
       take(1),
-      switchMap((edition) => {
+      switchMap(({ edition, supportedApps }) => {
         return this.fetchPieceMetadata({
           pieceName,
           pieceVersion,
@@ -225,7 +233,7 @@ export class PieceMetadataService {
           map((pieceMetadata) => {
             return {
               ...pieceMetadata,
-              triggers: this.filterAppWebhooks(pieceMetadata.triggers, edition),
+              triggers: this.filterAppWebhooks(pieceMetadata.name, pieceMetadata.triggers, supportedApps),
             };
           })
         );

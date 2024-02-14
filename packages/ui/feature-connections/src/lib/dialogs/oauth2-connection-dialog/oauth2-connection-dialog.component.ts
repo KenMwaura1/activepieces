@@ -20,6 +20,7 @@ import {
   OAuth2Property,
   OAuth2Props,
   PropertyType,
+  StaticMultiSelectDropdownProperty,
 } from '@activepieces/pieces-framework';
 import deepEqual from 'deep-equal';
 import {
@@ -45,12 +46,12 @@ interface OAuth2PropertySettings {
   client_secret: FormControl<string>;
   client_id: FormControl<string>;
   name: FormControl<string>;
-  value: FormControl<OAuth2PopupResponse>;
+  value: FormControl<OAuth2PopupResponse | null>;
   props: UntypedFormGroup;
 }
 export const USE_CLOUD_CREDENTIALS = 'USE_CLOUD_CREDENTIALS';
 export interface OAuth2ConnectionDialogData {
-  pieceAuthProperty: OAuth2Property<boolean, OAuth2Props>;
+  pieceAuthProperty: OAuth2Property<OAuth2Props>;
   pieceName: string;
   connectionToUpdate?: AppConnectionWithoutSensitiveData;
   redirectUrl: string;
@@ -64,7 +65,6 @@ export interface OAuth2ConnectionDialogData {
 })
 export class OAuth2ConnectionDialogComponent implements OnInit {
   PropertyType = PropertyType;
-  readonly FAKE_CODE = 'FAKE_CODE';
   readonly OAuth2GrantType = OAuth2GrantType;
   settingsForm: FormGroup<OAuth2PropertySettings>;
   loading = false;
@@ -135,13 +135,9 @@ export class OAuth2ConnectionDialogComponent implements OnInit {
           ],
         }
       ),
-      value: new FormControl(
-        { code: '' },
-        {
-          nonNullable: true,
-          validators: Validators.required,
-        }
-      ),
+      value: new FormControl<OAuth2PopupResponse | null>(null, {
+        validators: Validators.required,
+      }),
       props: this.fb.group(propsControls),
     });
     this.settingsForm.controls.name.markAllAsTouched();
@@ -153,7 +149,6 @@ export class OAuth2ConnectionDialogComponent implements OnInit {
         this.dialogData.connectionToUpdate.name
       );
       this.settingsForm.controls.name.disable();
-      this.settingsForm.controls.value.setValue({ code: this.FAKE_CODE });
     }
   }
   submit() {
@@ -168,15 +163,14 @@ export class OAuth2ConnectionDialogComponent implements OnInit {
     const connectionName = this.dialogData.connectionToUpdate
       ? this.dialogData.connectionToUpdate.name
       : this.settingsForm.controls.name.value;
-    const { tokenUrl } = this.getTokenAndUrl();
     const newConnection: UpsertOAuth2Request = {
       projectId: this.authenticatiionService.getProjectId(),
       name: connectionName,
       pieceName: this.dialogData.pieceName,
       type: AppConnectionType.OAUTH2,
       value: {
-        code: this.settingsForm.controls.value.value.code,
-        code_challenge: this.settingsForm.controls.value.value.code_challenge,
+        code: this.settingsForm.controls.value.value!.code,
+        code_challenge: this.settingsForm.controls.value.value!.code_challenge,
         type: AppConnectionType.OAUTH2,
         grant_type:
           this.dialogData.pieceAuthProperty.grantType ??
@@ -187,7 +181,6 @@ export class OAuth2ConnectionDialogComponent implements OnInit {
         client_secret: this.settingsForm.controls.client_secret.value,
         redirect_url: this.settingsForm.controls.redirect_url.getRawValue(),
         scope: this.dialogData.pieceAuthProperty.scope.join(' ') || '',
-        token_url: tokenUrl,
         props: this.dialogData.pieceAuthProperty.props
           ? this.settingsForm.controls.props.value
           : undefined,
@@ -202,10 +195,6 @@ export class OAuth2ConnectionDialogComponent implements OnInit {
   };
 
   saveConnection(connection: UpsertOAuth2Request): void {
-    if (connection.value.code === this.FAKE_CODE) {
-      this.dialogRef.close(connection);
-      return;
-    }
     this.upsert$ = this.appConnectionsService.upsert(connection).pipe(
       catchError((err) => {
         console.error(err);
@@ -260,7 +249,7 @@ export class OAuth2ConnectionDialogComponent implements OnInit {
 
   getOAuth2Settings(): OAuth2PopupParams {
     const formValue = this.settingsForm.getRawValue();
-    const { authUrl } = this.getTokenAndUrl();
+    const { authUrl } = this.getAuthUrl();
     return {
       auth_url: authUrl,
       client_id: formValue.client_id,
@@ -271,16 +260,11 @@ export class OAuth2ConnectionDialogComponent implements OnInit {
     };
   }
 
-  getTokenAndUrl() {
+  getAuthUrl() {
     let authUrl = this.dialogData.pieceAuthProperty.authUrl;
-    let tokenUrl = this.dialogData.pieceAuthProperty.tokenUrl;
     if (this.dialogData.pieceAuthProperty.props) {
       Object.keys(this.dialogData.pieceAuthProperty.props).forEach((key) => {
         authUrl = authUrl.replaceAll(
-          `{${key}}`,
-          this.settingsForm.controls.props.value[key]
-        );
-        tokenUrl = tokenUrl.replaceAll(
           `{${key}}`,
           this.settingsForm.controls.props.value[key]
         );
@@ -288,7 +272,10 @@ export class OAuth2ConnectionDialogComponent implements OnInit {
     }
     return {
       authUrl: authUrl,
-      tokenUrl: tokenUrl,
     };
+  }
+
+  castToStaticDropdown(t: unknown) {
+    return t as StaticMultiSelectDropdownProperty<unknown, true>;
   }
 }

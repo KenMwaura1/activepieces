@@ -20,10 +20,13 @@ import {
   LIMIT_QUERY_PARAM,
   CURSOR_QUERY_PARAM,
   STATUS_QUERY_PARAM,
+  FLOW_QUERY_PARAM,
+  DATE_RANGE_START_QUERY_PARAM,
+  DATE_RANGE_END_QUERY_PARAM,
 } from '@activepieces/ui/common';
 import { Store } from '@ngrx/store';
 import { Params } from '@angular/router';
-const REFRESH_TABLE_DELAY = 15000;
+const REFRESH_TABLE_DELAY = 10000;
 /**
  * Data source for the LogsTable view. This class should
  * encapsulate all logic for fetching and manipulating the displayed data
@@ -70,6 +73,9 @@ export class RunsTableDataSource extends DataSource<FlowRun> {
           status: res.queryParams[STATUS_QUERY_PARAM],
           limit: res.queryParams[LIMIT_QUERY_PARAM] || DEFAULT_PAGE_SIZE,
           cursor: res.queryParams[CURSOR_QUERY_PARAM],
+          flowId: res.queryParams[FLOW_QUERY_PARAM],
+          createdAfter: res.queryParams[DATE_RANGE_START_QUERY_PARAM],
+          createdBefore: res.queryParams[DATE_RANGE_END_QUERY_PARAM],
         });
       }),
       catchError((err) => {
@@ -82,8 +88,7 @@ export class RunsTableDataSource extends DataSource<FlowRun> {
       }),
       tap((res) => {
         this.isLoading$.next(false);
-        this.paginator.next = res.next;
-        this.paginator.previous = res.previous;
+        this.paginator.setNextAndPrevious(res.next, res.previous);
         this.data = res.data;
         if (this.refreshTimer) {
           clearTimeout(this.refreshTimer);

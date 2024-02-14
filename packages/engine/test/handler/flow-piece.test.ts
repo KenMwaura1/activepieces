@@ -1,6 +1,6 @@
 import { ExecutionVerdict, FlowExecutorContext } from '../../src/lib/handler/context/flow-execution-context'
 import { pieceExecutor } from '../../src/lib/handler/piece-executor'
-import { EXECUTE_CONSTANTS, buildPieceAction } from './test-helper'
+import { buildPieceAction, generateMockEngineConstants } from './test-helper'
 
 describe('pieceExecutor', () => {
 
@@ -15,7 +15,7 @@ describe('pieceExecutor', () => {
                         'key': '{{ 1 + 2 }}',
                     },
                 },
-            }), executionState: FlowExecutorContext.empty(), constants: EXECUTE_CONSTANTS,
+            }), executionState: FlowExecutorContext.empty(), constants: generateMockEngineConstants(),
         })
         expect(result.verdict).toBe(ExecutionVerdict.RUNNING)
         expect(result.steps.data_mapper.output).toEqual({ 'key': 3 })
@@ -34,16 +34,22 @@ describe('pieceExecutor', () => {
                     'failsafe': false,
                     'queryParams': {},
                 },
-            }), executionState: FlowExecutorContext.empty(), constants: EXECUTE_CONSTANTS,
+            }), executionState: FlowExecutorContext.empty(), constants: generateMockEngineConstants(),
         })
         expect(result.verdict).toBe(ExecutionVerdict.FAILED)
         expect(result.steps.send_http.status).toBe('FAILED')
         expect(result.steps.send_http.errorMessage).toEqual({
-            'response': {
-                'status': 404,
-                'body': '\n                Oops! It looks like we hit a dead end.\n                The endpoint you\'re searching for is nowhere to be found.\n                We suggest turning around and trying another path. Good luck!\n            ',
+            request: {
+                
             },
-            'request': {},
+            response: {
+                'body': {
+                    'error': 'Not Found',
+                    'message': 'Route not found',
+                    'statusCode': 404,
+                },
+                status: 404,
+            },
         })
     })
 

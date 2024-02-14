@@ -21,7 +21,7 @@ import {
     EngineTestOperation,
     BeginExecuteFlowOperation,
     ResumeExecuteFlowOperation,
-    ExcuteStepOperation,
+    ExecuteStepOperation,
     flowHelper,
     Action,
     assertNotNullOrUndefined,
@@ -40,12 +40,12 @@ import { logger } from '../helper/logger'
 import chalk from 'chalk'
 import { getEdition, getWebhookSecret } from './secret-helper'
 import { appEventRoutingService } from '../app-event-routing/app-event-routing.service'
-import { pieceMetadataService } from '../pieces/piece-metadata-service'
+import { getPiecePackage, pieceMetadataService } from '../pieces/piece-metadata-service'
 import { flowVersionService } from '../flows/flow-version/flow-version.service'
 import { sandboxProvisioner } from '../workers/sandbox/provisioner/sandbox-provisioner'
 import { SandBoxCacheType } from '../workers/sandbox/provisioner/sandbox-cache-key'
 import { hashObject } from './encryption'
-import { getServerUrl } from './public-ip-utils'
+import { getServerUrl } from './network-utils'
 
 type GenerateWorkerTokenParams = {
     projectId: ProjectId
@@ -66,10 +66,7 @@ export type EngineHelperActionResult = ExecuteActionResponse
 export type EngineHelperValidateAuthResult = ExecuteValidateAuthResponse
 
 export type EngineHelperCodeResult = ExecuteActionResponse
-export type EngineHelperExtractPieceInformation = Omit<
-PieceMetadata,
-'name' | 'version'
->
+export type EngineHelperExtractPieceInformation = PieceMetadata
 
 export type EngineHelperResult =
     | EngineHelperFlowResult
@@ -111,7 +108,7 @@ const execute = async <Result extends EngineHelperResult>(
 ): Promise<EngineHelperResponse<Result>> => {
     try {
         logger.debug({ operation, sandboxId: sandbox.boxId }, '[EngineHelper#execute]')
-        
+
         const sandboxPath = sandbox.getSandboxFolderPath()
 
 
@@ -176,10 +173,10 @@ export const engineHelper = {
     ): Promise<EngineHelperResponse<EngineHelperTriggerResult<T>>> {
         logger.debug({ hookType: operation.hookType, projectId: operation.projectId }, '[EngineHelper#executeTrigger]')
 
-        const lockedFlowVersion = await flowVersionService.lockPieceVersions(
-            operation.projectId,
-            operation.flowVersion,
-        )
+        const lockedFlowVersion = await flowVersionService.lockPieceVersions({
+            projectId: operation.projectId,
+            flowVersion: operation.flowVersion,
+        })
 
         const triggerSettings = (lockedFlowVersion.trigger as PieceTrigger).settings
         const { packageType, pieceType, pieceName, pieceVersion } = triggerSettings
@@ -193,15 +190,14 @@ export const engineHelper = {
         const sandbox = await sandboxProvisioner.provision({
             type: SandBoxCacheType.PIECE,
             pieceName,
-            projectId: operation.projectId,
             pieceVersion: exactPieceVersion,
             pieces: [
-                {
+                await getPiecePackage(operation.projectId, {
                     packageType,
                     pieceType,
                     pieceName,
                     pieceVersion: exactPieceVersion,
-                },
+                }),
             ],
         })
 
@@ -245,7 +241,6 @@ export const engineHelper = {
         const sandbox = await sandboxProvisioner.provision({
             type: SandBoxCacheType.PIECE,
             pieceName: piece.pieceName,
-            projectId: operation.projectId,
             pieceVersion: piece.pieceVersion,
             pieces: [piece],
         })
@@ -274,7 +269,6 @@ export const engineHelper = {
             type: SandBoxCacheType.PIECE,
             pieceName,
             pieceVersion,
-            projectId: operation.projectId,
             pieces: [piece],
         })
 
@@ -285,7 +279,7 @@ export const engineHelper = {
         )
     },
 
-    async executeAction(operation: Omit<ExcuteStepOperation, EngineConstants>): Promise<EngineHelperResponse<EngineHelperActionResult>> {
+    async executeAction(operation: Omit<ExecuteStepOperation, EngineConstants>): Promise<EngineHelperResponse<EngineHelperActionResult>> {
         logger.debug({
             flowVersionId: operation.flowVersion.id,
             stepName: operation.stepName,
@@ -294,7 +288,7 @@ export const engineHelper = {
         const step = flowHelper.getStep(lockedFlowVersion, operation.stepName) as Action | undefined
         assertNotNullOrUndefined(step, 'Step not found')
         const sandbox = await getSandboxForAction(operation.projectId, operation.flowVersion.flowId, step)
-        const input: ExcuteStepOperation = {
+        const input: ExecuteStepOperation = {
             flowVersion: lockedFlowVersion,
             stepName: operation.stepName,
             projectId: operation.projectId,
@@ -323,7 +317,6 @@ export const engineHelper = {
             pieceName: piece.pieceName,
             pieceVersion: piece.pieceVersion,
             pieces: [piece],
-            projectId: operation.projectId,
         })
 
         const input = {
@@ -390,14 +383,12 @@ async function getSandboxForAction(projectId: string, flowId: string, action: Ac
                 type: SandBoxCacheType.PIECE,
                 pieceName: piece.pieceName,
                 pieceVersion: piece.pieceVersion,
-                pieces: [piece],
-                projectId,
+                pieces: [await getPiecePackage(projectId, piece)],
             })
         }
         case ActionType.CODE: {
             return sandboxProvisioner.provision({
                 type: SandBoxCacheType.CODE,
-                projectId,
                 flowId,
                 name: action.name,
                 sourceCodeHash: hashObject(action.settings.sourceCode),
@@ -407,13 +398,12 @@ async function getSandboxForAction(projectId: string, flowId: string, action: Ac
                         sourceCode: action.settings.sourceCode,
                     },
                 ],
-            })    
+            })
         }
         case ActionType.BRANCH:
-        case ActionType.LOOP_ON_ITEMS: 
+        case ActionType.LOOP_ON_ITEMS:
             return sandboxProvisioner.provision({
                 type: SandBoxCacheType.NONE,
-                projectId,
             })
     }
 }

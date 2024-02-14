@@ -17,6 +17,16 @@ const commonActionProps = {
     displayName: Type.String({}),
 }
 
+export const ActionErrorHandlingOptions = Type.Optional(Type.Object({
+    continueOnFailure: Type.Optional(Type.Object({
+        value: Type.Boolean(),
+    })),
+    retryOnFailure: Type.Optional(Type.Object({
+        value: Type.Boolean(),
+    })),
+}))
+export type ActionErrorHandlingOptions = Static<typeof ActionErrorHandlingOptions>
+
 export const SourceCode = Type.Object({
     packageJson: Type.String({}),
     code: Type.String({}),
@@ -28,8 +38,8 @@ export const CodeActionSettings = Type.Object({
     sourceCode: SourceCode,
     input: Type.Record(Type.String({}), Type.Any()),
     inputUiInfo: Type.Optional(SampleDataSettingsObject),
+    errorHandlingOptions: ActionErrorHandlingOptions,
 })
-
 
 export type CodeActionSettings = Static<typeof CodeActionSettings>
 
@@ -48,6 +58,7 @@ export const PieceActionSettings = Type.Object({
     actionName: Type.Optional(Type.String({})),
     input: Type.Record(Type.String({}), Type.Any()),
     inputUiInfo: SampleDataSettingsObject,
+    errorHandlingOptions: ActionErrorHandlingOptions,
 })
 
 export type PieceActionSettings = Static<typeof PieceActionSettings>
@@ -90,6 +101,7 @@ export enum BranchOperator {
     TEXT_DOES_NOT_END_WITH = 'TEXT_DOES_NOT_END_WITH',
     NUMBER_IS_GREATER_THAN = 'NUMBER_IS_GREATER_THAN',
     NUMBER_IS_LESS_THAN = 'NUMBER_IS_LESS_THAN',
+    NUMBER_IS_EQUAL_TO = 'NUMBER_IS_EQUAL_TO',
     BOOLEAN_IS_TRUE = 'BOOLEAN_IS_TRUE',
     BOOLEAN_IS_FALSE = 'BOOLEAN_IS_FALSE',
     EXISTS = 'EXISTS',
@@ -136,6 +148,7 @@ const BranchConditionValid = (addMinLength: boolean) => Type.Union([
         operator: Type.Optional(Type.Union([
             Type.Literal( BranchOperator.NUMBER_IS_GREATER_THAN),
             Type.Literal( BranchOperator.NUMBER_IS_LESS_THAN),
+            Type.Literal( BranchOperator.NUMBER_IS_EQUAL_TO),
         ])),
     }),
     Type.Object({

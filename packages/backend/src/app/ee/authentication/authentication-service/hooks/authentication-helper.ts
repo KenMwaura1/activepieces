@@ -6,6 +6,8 @@ import { projectMemberService } from '../../../project-members/project-member.se
 import { projectService } from '../../../../project/project-service'
 import { getEdition } from '../../../../helper/secret-helper'
 import { userService } from '../../../../user/user-service'
+import { flagService } from '../../../../flags/flag.service'
+import { Provider } from '../../../../authentication/authentication-service/hooks/authentication-service-hooks'
 
 async function getProjectForUserOrThrow(user: User): Promise<Project> {
     const invitedProject = await getProjectMemberOrThrow(user)
@@ -107,11 +109,60 @@ async function assertUserIsInvitedToAnyProject({ email, platformId }: { email: s
     }
 }
 
+async function assertEmailAuthIsEnabled({ platformId, provider }: { platformId: string | null, provider: Provider }): Promise<void> {
+    if (isNil(platformId)) {
+        return
+    }
+    const platform = await platformService.getOneOrThrow(platformId)
+    if (!platform.ssoEnabled) {
+        return
+    }
+    if (provider !== Provider.EMAIL) {
+        return
+    }
+    if (!platform.emailAuthEnabled) {
+        throw new ActivepiecesError({
+            code: ErrorCode.EMAIL_AUTH_DISABLED,
+            params: {},
+        })
+    }
+}
+
+async function assertDomainIsAllowed({ email, platformId }: { email: string, platformId: string | null }): Promise<void> {
+    if (isNil(platformId)) {
+        return
+    }
+    const platform = await platformService.getOneOrThrow(platformId)
+    if (!platform.ssoEnabled) {
+        return
+    }
+    const emailDomain = email.split('@')[1]
+    const isAllowedDomaiin = !platform.enforceAllowedAuthDomains || platform.allowedAuthDomains.includes(emailDomain)
+
+    if (!isAllowedDomaiin) {
+        throw new ActivepiecesError({
+            code: ErrorCode.DOMAIN_NOT_ALLOWED,
+            params: {
+                domain: emailDomain,
+            },
+        })
+    }
+}
+
+async function assertUserIsInvitedAndDomainIsAllowed({ email, platformId }: { email: string, platformId: string | null }): Promise<void> {
+    await assertDomainIsAllowed({ email, platformId })
+    const customerPlatformEnabled = !isNil(platformId) && !flagService.isCloudPlatform(platformId)
+    if (customerPlatformEnabled) {
+        await assertUserIsInvitedToAnyProject({ email, platformId })
+    }
+}
+
 export const authenticationHelper = {
     getProjectAndTokenOrThrow,
     autoVerifyUserIfEligible,
-    assertUserIsInvitedToAnyProject,
-
+    assertUserIsInvitedAndDomainIsAllowed,
+    assertDomainIsAllowed,
+    assertEmailAuthIsEnabled,
 }
 
 

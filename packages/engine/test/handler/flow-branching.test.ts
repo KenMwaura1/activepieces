@@ -1,6 +1,6 @@
 import { BranchCondition, BranchOperator } from '@activepieces/shared'
 import { ExecutionVerdict, FlowExecutorContext } from '../../src/lib/handler/context/flow-execution-context'
-import { EXECUTE_CONSTANTS, buildActionWithOneCondition } from './test-helper'
+import { buildActionWithOneCondition, generateMockEngineConstants } from './test-helper'
 import { flowExecutor } from '../../src/lib/handler/flow-executor'
 
 function executeBranchActionWithOneCondition(condition: BranchCondition): Promise<FlowExecutorContext> {
@@ -9,7 +9,7 @@ function executeBranchActionWithOneCondition(condition: BranchCondition): Promis
             condition,
         }),
         executionState: FlowExecutorContext.empty(),
-        constants: EXECUTE_CONSTANTS,
+        constants: generateMockEngineConstants(),
     })
 }
 describe('flow with branching different conditions', () => {
@@ -298,6 +298,48 @@ describe('flow with branching different conditions', () => {
             {
                 operator: BranchOperator.BOOLEAN_IS_FALSE,
                 firstValue: '{{false}}',
+            },
+        )
+        expect(result.verdict).toBe(ExecutionVerdict.RUNNING)
+        expect(result.steps.branch.output).toEqual({
+            condition: true,
+        })
+    })
+
+    it('should execute branch with two equal numbers', async () => {
+        const result = await executeBranchActionWithOneCondition(
+            {
+                operator: BranchOperator.NUMBER_IS_EQUAL_TO,
+                firstValue: '1',
+                secondValue: '1',
+            },
+        )
+        expect(result.verdict).toBe(ExecutionVerdict.RUNNING)
+        expect(result.steps.branch.output).toEqual({
+            condition: true,
+        })
+    })
+
+    it('should execute branch with the first number greater than the second one', async () => {
+        const result = await executeBranchActionWithOneCondition(
+            {
+                operator: BranchOperator.NUMBER_IS_GREATER_THAN,
+                firstValue: '2',
+                secondValue: '1',
+            },
+        )
+        expect(result.verdict).toBe(ExecutionVerdict.RUNNING)
+        expect(result.steps.branch.output).toEqual({
+            condition: true,
+        })
+    })
+
+    it('should execute branch with the first number less than the second one', async () => {
+        const result = await executeBranchActionWithOneCondition(
+            {
+                operator: BranchOperator.NUMBER_IS_LESS_THAN,
+                firstValue: '1',
+                secondValue: '2',
             },
         )
         expect(result.verdict).toBe(ExecutionVerdict.RUNNING)

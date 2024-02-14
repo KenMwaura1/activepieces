@@ -17,14 +17,13 @@ import {
     ExecuteExtractPieceMetadata,
     ExecutePropsOptions,
 } from '@activepieces/shared'
-import { API_URL } from '../constants'
+import { EngineConstants } from '../handler/context/engine-constants'
 import { FlowExecutorContext } from '../handler/context/flow-execution-context'
 import { pieceLoader } from './piece-loader'
 import { variableService } from '../services/variable-service'
 
-
 export const pieceHelper = {
-    async executeProps({ params, piecesSource }: { params: ExecutePropsOptions, piecesSource: string }) {
+    async executeProps({ params, piecesSource, executionState, constants }: { executionState: FlowExecutorContext, params: ExecutePropsOptions, piecesSource: string, constants: EngineConstants }) {
         const property = await pieceLoader.getPropOrThrow({
             params,
             piecesSource,
@@ -38,13 +37,17 @@ export const pieceHelper = {
             StaticPropsValue<PiecePropertyMap>
             >({
                 unresolvedInput: params.input,
-                executionState: FlowExecutorContext.empty(),
+                executionState,
             })
             const ctx = {
                 server: {
                     token: params.workerToken,
-                    apiUrl: API_URL,
+                    apiUrl: EngineConstants.API_URL,
                     publicUrl: params.serverUrl,
+                },
+                project: {
+                    id: params.projectId,
+                    externalId: constants.externalProjectId,
                 },
             }
 

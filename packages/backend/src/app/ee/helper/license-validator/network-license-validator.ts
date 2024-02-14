@@ -19,6 +19,9 @@ export const networkLicenseValidator: LicenseValidator = {
                 status: LiceneseStatus.VALID,
                 showPoweredBy: res.data.showPoweredBy,
                 embeddingEnabled: res.data.embeddingEnabled,
+                gitSyncEnabled: res.data.gitSyncEnabled,
+                ssoEnabled: res.data.ssoEnabled,
+                auditLogEnabled: res.data.auditLogEnabled,
             }
         }
         catch (err) {

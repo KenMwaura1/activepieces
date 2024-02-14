@@ -1,13 +1,12 @@
-import { ApEdition, ApFlagId, Flag } from '@activepieces/shared'
+import { ApEdition, ApFlagId, Flag, isNil } from '@activepieces/shared'
 import { databaseConnection } from '../database/database-connection'
 import { system } from '../helper/system/system'
 import { SystemProp } from '../helper/system/system-prop'
 import { FlagEntity } from './flag.entity'
 import axios from 'axios'
 import { webhookService } from '../webhooks/webhook-service'
-import { getEdition } from '../helper/secret-helper'
+import { getEdition, getSupportedAppWebhooks } from '../helper/secret-helper'
 import { defaultTheme } from './theme'
-import { showThirdPartyProvidersMap } from '../ee/authentication/federated-authn/authn-provider/authn-provider'
 
 const flagRepo = databaseConnection.getRepository(FlagEntity)
 
@@ -38,7 +37,19 @@ export const flagService = {
                 updated,
             },
             {
+                id: ApFlagId.SHOW_PLATFORM_DEMO,
+                value: true,
+                created,
+                updated,
+            },
+            {
                 id: ApFlagId.OWN_AUTH2_ENABLED,
+                value: true,
+                created,
+                updated,
+            },
+            {
+                id: ApFlagId.SHOW_GIT_SYNC,
                 value: true,
                 created,
                 updated,
@@ -46,6 +57,18 @@ export const flagService = {
             {
                 id: ApFlagId.CLOUD_AUTH_ENABLED,
                 value: system.getBoolean(SystemProp.CLOUD_AUTH_ENABLED) ?? true,
+                created,
+                updated,
+            },
+            {
+                id: ApFlagId.COPILOT_ENABLED,
+                value: !isNil(system.get(SystemProp.OPENAI_API_KEY)),
+                created,
+                updated,
+            },
+            {
+                id: ApFlagId.SHOW_COPILOT,
+                value: true,
                 created,
                 updated,
             },
@@ -75,20 +98,25 @@ export const flagService = {
             },
             {
                 id: ApFlagId.THIRD_PARTY_AUTH_PROVIDERS_TO_SHOW_MAP,
-                //show only for cloud and hide it for platform users in flags hook
-                value: getEdition() === ApEdition.CLOUD ? showThirdPartyProvidersMap : {},
+                value: {},
                 created,
                 updated,
             },
             {
                 id: ApFlagId.THIRD_PARTY_AUTH_PROVIDER_REDIRECT_URL,
-                value: [ApEdition.CLOUD, ApEdition.ENTERPRISE].includes(getEdition()) ? this.getThirdPartyRedirectUrl() : undefined,
+                value: [ApEdition.CLOUD, ApEdition.ENTERPRISE].includes(getEdition()) ? this.getThirdPartyRedirectUrl(undefined, undefined) : undefined,
                 created,
                 updated,
             },
             {
                 id: ApFlagId.PROJECT_MEMBERS_ENABLED,
                 value: getEdition() !== ApEdition.COMMUNITY,
+                created,
+                updated,
+            },
+            {
+                id: ApFlagId.EMAIL_AUTH_ENABLED,
+                value: true,
                 created,
                 updated,
             },
@@ -182,12 +210,24 @@ export const flagService = {
                 created,
                 updated,
             },
+            {
+                id: ApFlagId.SUPPORTED_APP_WEBHOOKS,
+                value: getSupportedAppWebhooks(),
+                created,
+                updated,
+            },
         )
 
         return flags
     },
-    getThirdPartyRedirectUrl(): string {
-        return `${system.get(SystemProp.FRONTEND_URL)}/redirect`
+    getThirdPartyRedirectUrl(platformId: string | undefined, hostname: string | undefined): string {
+        const isCustomerPlatform = platformId && !flagService.isCloudPlatform(platformId)
+        if (isCustomerPlatform) {
+            return `https://${hostname}/redirect`
+        }
+        const frontendUrl = system.get(SystemProp.FRONTEND_URL)
+        const trimmedFrontendUrl = frontendUrl?.endsWith('/') ? frontendUrl.slice(0, -1) : frontendUrl
+        return `${trimmedFrontendUrl}/redirect`
     },
     async getCurrentRelease(): Promise<string> {
         const packageJson = await import('package.json')

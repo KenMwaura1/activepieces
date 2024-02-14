@@ -41,6 +41,7 @@ type ErrorParams =
     | PieceNotFoundErrorParams
     | PieceTriggerNotFoundErrorParams
     | QuotaExceededParams
+    | FeatureDisabledErrorParams
     | SignUpDisabledParams
     | StepNotFoundErrorParams
     | SystemInvalidErrorParams
@@ -52,6 +53,8 @@ type ErrorParams =
     | ValidationErrorParams
     | InvitationOnlySignUpParams
     | UserIsInActiveErrorParams
+    | DomainIsNotAllowedErrorParams
+    | EmailAuthIsDisabledParams
 
 export type BaseErrorParams<T, V> = {
     code: T
@@ -71,6 +74,8 @@ export type InvalidBearerTokenParams = BaseErrorParams<ErrorCode.INVALID_BEARER_
 }>
 
 export type FileNotFoundErrorParams = BaseErrorParams<ErrorCode.FILE_NOT_FOUND, { id: FileId }>
+
+export type EmailAuthIsDisabledParams = BaseErrorParams<ErrorCode.EMAIL_AUTH_DISABLED, Record<string, never>>
 
 export type AppConnectionNotFoundErrorParams = BaseErrorParams<
 ErrorCode.APP_CONNECTION_NOT_FOUND,
@@ -119,6 +124,13 @@ ErrorCode.FLOW_RUN_NOT_FOUND,
 export type InvalidCredentialsErrorParams = BaseErrorParams<
 ErrorCode.INVALID_CREDENTIALS,
 null
+>
+
+export type DomainIsNotAllowedErrorParams = BaseErrorParams<
+ErrorCode.DOMAIN_NOT_ALLOWED,
+{
+    domain: string
+}
 >
 
 export type EmailIsNotVerifiedErrorParams = BaseErrorParams<
@@ -295,6 +307,12 @@ ErrorCode.QUOTA_EXCEEDED,
 }
 >
 
+export type FeatureDisabledErrorParams = BaseErrorParams<
+ErrorCode.FEATURE_DISABLED,
+{
+    message: string
+}>
+
 export type SignUpDisabledParams = BaseErrorParams<
 ErrorCode.SIGN_UP_DISABLED,
 Record<string, never>
@@ -314,10 +332,12 @@ export enum ErrorCode {
     AUTHENTICATION = 'AUTHENTICATION',
     AUTHORIZATION = 'AUTHORIZATION',
     CONFIG_NOT_FOUND = 'CONFIG_NOT_FOUND',
+    DOMAIN_NOT_ALLOWED = 'DOMAIN_NOT_ALLOWED',
     EMAIL_IS_NOT_VERIFIED = 'EMAIL_IS_NOT_VERIFIED',
     ENGINE_OPERATION_FAILURE = 'ENGINE_OPERATION_FAILURE',
     ENTITY_NOT_FOUND = 'ENTITY_NOT_FOUND',
     EXECUTION_TIMEOUT = 'EXECUTION_TIMEOUT',
+    EMAIL_AUTH_DISABLED = 'EMAIL_AUTH_DISABLED',
     EXISTING_USER = 'EXISTING_USER',
     FILE_NOT_FOUND = 'FILE_NOT_FOUND',
     FLOW_INSTANCE_NOT_FOUND = 'INSTANCE_NOT_FOUND',
@@ -340,6 +360,7 @@ export enum ErrorCode {
     PIECE_NOT_FOUND = 'PIECE_NOT_FOUND',
     PIECE_TRIGGER_NOT_FOUND = 'PIECE_TRIGGER_NOT_FOUND',
     QUOTA_EXCEEDED = 'QUOTA_EXCEEDED',
+    FEATURE_DISABLED = 'FEATURE_DISABLED',
     SIGN_UP_DISABLED = 'SIGN_UP_DISABLED',
     STEP_NOT_FOUND = 'STEP_NOT_FOUND',
     SYSTEM_PROP_INVALID = 'SYSTEM_PROP_INVALID',
