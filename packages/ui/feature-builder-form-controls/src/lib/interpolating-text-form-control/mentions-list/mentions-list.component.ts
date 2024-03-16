@@ -22,7 +22,6 @@ import {
   tap,
 } from 'rxjs';
 import { ActionType, TriggerType } from '@activepieces/shared';
-import { MentionListItem } from '../utils';
 import { MentionsTreeCacheService } from './mentions-tree-cache.service';
 import {
   BuilderSelectors,
@@ -31,6 +30,7 @@ import {
 import {
   BuilderAutocompleteMentionsDropdownService,
   InsertMentionOperation,
+  MentionListItem,
 } from '@activepieces/ui/common';
 
 @Component({
@@ -87,7 +87,7 @@ export class MentionsListComponent implements OnInit, AfterViewInit {
   ngAfterViewInit(): void {
     if (this.focusSearchInput$) {
       setTimeout(() => {
-        this.searchInput.nativeElement.focus();
+        this.searchInput?.nativeElement.focus();
       }, 1);
     }
   }
@@ -96,7 +96,7 @@ export class MentionsListComponent implements OnInit, AfterViewInit {
       this.focusSearchInput$ = this.focusSearchInput$.pipe(
         tap((val) => {
           if (val && this.searchInput) {
-            this.searchInput.nativeElement.focus();
+            this.searchInput?.nativeElement.focus();
           }
         })
       );

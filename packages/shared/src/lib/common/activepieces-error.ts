@@ -1,8 +1,9 @@
-import { AppConnectionId } from '../app-connection/app-connection'
 import { FileId } from '../file/file'
 import { FlowRunId } from '../flow-run/flow-run'
 import { FlowId } from '../flows/flow'
 import { FlowVersionId } from '../flows/flow-version'
+import { ProjectId } from '../project'
+import { UserId } from '../user'
 import { ApId } from './id-generator'
 
 export class ActivepiecesError extends Error {
@@ -12,7 +13,6 @@ export class ActivepiecesError extends Error {
 }
 
 type ErrorParams =
-    | AppConnectionNotFoundErrorParams
     | AuthenticationParams
     | AuthorizationErrorParams
     | ConfigNotFoundErrorParams
@@ -22,7 +22,9 @@ type ErrorParams =
     | ExecutionTimeoutErrorParams
     | ExistingUserErrorParams
     | FileNotFoundErrorParams
+    | FlowFormNotFoundError
     | FlowNotFoundErrorParams
+    | FlowIsLockedErrorParams
     | FlowOperationErrorParams
     | FlowRunNotFoundErrorParams
     | InvalidApiKeyParams
@@ -77,15 +79,9 @@ export type FileNotFoundErrorParams = BaseErrorParams<ErrorCode.FILE_NOT_FOUND, 
 
 export type EmailAuthIsDisabledParams = BaseErrorParams<ErrorCode.EMAIL_AUTH_DISABLED, Record<string, never>>
 
-export type AppConnectionNotFoundErrorParams = BaseErrorParams<
-ErrorCode.APP_CONNECTION_NOT_FOUND,
-{
-    id: AppConnectionId
-}
->
-
 export type AuthorizationErrorParams = BaseErrorParams<
 ErrorCode.AUTHORIZATION,
+Record<string, string> &
 {
     message?: string
 }
@@ -94,9 +90,8 @@ ErrorCode.AUTHORIZATION,
 export type PermissionDeniedErrorParams = BaseErrorParams<
 ErrorCode.PERMISSION_DENIED,
 {
-    resource: string
-    action: string
-    projectId: string
+    userId: UserId
+    projectId: ProjectId
 }
 >
 
@@ -226,6 +221,20 @@ ErrorCode.FLOW_OPERATION_INVALID,
 Record<string, never>
 >
 
+export type FlowFormNotFoundError = BaseErrorParams<
+ErrorCode.FLOW_FORM_NOT_FOUND,
+{
+    flowId: FlowVersionId
+    message: string
+}>
+
+export type FlowIsLockedErrorParams = BaseErrorParams<
+ErrorCode.FLOW_IN_USE,
+{
+    flowVersionId: FlowVersionId
+    message: string
+}>
+
 export type InvalidJwtTokenErrorParams = BaseErrorParams<
 ErrorCode.INVALID_OR_EXPIRED_JWT_TOKEN,
 {
@@ -328,7 +337,6 @@ ErrorCode.AUTHENTICATION,
 export type InvalidOtpParams = BaseErrorParams<ErrorCode.INVALID_OTP, Record<string, never>>
 
 export enum ErrorCode {
-    APP_CONNECTION_NOT_FOUND = 'APP_CONNECTION_NOT_FOUND',
     AUTHENTICATION = 'AUTHENTICATION',
     AUTHORIZATION = 'AUTHORIZATION',
     CONFIG_NOT_FOUND = 'CONFIG_NOT_FOUND',
@@ -339,10 +347,12 @@ export enum ErrorCode {
     EXECUTION_TIMEOUT = 'EXECUTION_TIMEOUT',
     EMAIL_AUTH_DISABLED = 'EMAIL_AUTH_DISABLED',
     EXISTING_USER = 'EXISTING_USER',
+    FLOW_FORM_NOT_FOUND = 'FLOW_FORM_NOT_FOUND',
     FILE_NOT_FOUND = 'FILE_NOT_FOUND',
     FLOW_INSTANCE_NOT_FOUND = 'INSTANCE_NOT_FOUND',
     FLOW_NOT_FOUND = 'FLOW_NOT_FOUND',
     FLOW_OPERATION_INVALID = 'FLOW_OPERATION_INVALID',
+    FLOW_IN_USE = 'FLOW_IN_USE',
     FLOW_RUN_NOT_FOUND = 'FLOW_RUN_NOT_FOUND',
     INVALID_API_KEY = 'INVALID_API_KEY',
     INVALID_APP_CONNECTION = 'INVALID_APP_CONNECTION',

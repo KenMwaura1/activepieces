@@ -4,11 +4,11 @@ import {
     Project,
     ProjectId,
     UserId,
+    Platform,
     isNil,
 } from '@activepieces/shared'
 import { projectService } from '../../project/project-service'
-import { platformService } from './platform.service'
-import { Platform } from '@activepieces/ee-shared'
+import { platformService } from '../../platform/platform.service'
 
 export const adminPlatformService = {
     async add({
@@ -18,11 +18,16 @@ export const adminPlatformService = {
     }: AdminAddPlatformParams): Promise<Platform> {
         const project = await getProjectOrThrow(projectId)
 
-        return platformService.add({
+        const platform = await platformService.create({
             ownerId: userId,
-            projectId: project.id,
             name,
         })
+
+        await projectService.addProjectToPlatform({
+            projectId: project.id,
+            platformId: platform.id,
+        })
+        return platform
     },
 }
 

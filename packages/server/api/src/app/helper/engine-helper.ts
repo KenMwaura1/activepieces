@@ -5,7 +5,6 @@ import {
     EngineOperationType,
     ExecutePropsOptions,
     ExecuteTriggerOperation,
-    ExecutionOutput,
     PieceTrigger,
     PrincipalType,
     ProjectId,
@@ -28,6 +27,8 @@ import {
     ActionType,
     FlowVersion,
     ExecuteFlowOperation,
+    PlatformRole,
+    FlowRunResponse,
 } from '@activepieces/shared'
 import { Sandbox } from 'server-worker'
 import { accessTokenManager } from '../authentication/lib/access-token-manager'
@@ -54,7 +55,7 @@ type GenerateWorkerTokenParams = {
     projectId: ProjectId
 }
 
-export type EngineHelperFlowResult = ExecutionOutput
+export type EngineHelperFlowResult = FlowRunResponse
 
 export type EngineHelperTriggerResult<
     T extends TriggerHookType = TriggerHookType,
@@ -94,6 +95,11 @@ const generateWorkerToken = ({
         id: apId(),
         type: PrincipalType.WORKER,
         projectId,
+        // TODO NOW remove this hack
+        platform: {
+            id: apId(),
+            role: PlatformRole.OWNER,
+        },
     })
 }
 

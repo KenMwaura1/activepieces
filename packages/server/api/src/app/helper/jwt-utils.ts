@@ -120,7 +120,6 @@ export const jwtUtils = {
                 if (err) {
                     return reject(err)
                 }
-
                 return resolve(payload as T)
             })
         })

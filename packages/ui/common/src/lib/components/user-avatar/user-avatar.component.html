@@ -1,5 +1,5 @@
 <div class="ap-flex ap-justify-end">
-    <div class="ap-typography-body-2 !ap-font-[600] ap-text-white ap-bg-avatar ap-rounded-full ap-px-[12px] ap-py-[7px] ap-cursor-pointer ap-text-center ap-min-w-[36px] ap-min-h-[36px]"
+    <div class="ap-typography-body-2 !ap-font-[600] !ap-leading-[1.375rem] ap-text-white ap-bg-avatar ap-rounded-full ap-px-[12px] ap-py-[7px] ap-cursor-pointer ap-text-center ap-min-w-[36px] ap-min-h-[36px]"
         [matMenuTriggerFor]="menu">
         {{ currentUserEmail[0] | uppercase }}
     </div>
@@ -43,8 +43,7 @@
             </ng-container>
         </ng-container>
     </ng-container>
-    <div class="ap-border-b ap-border-solid  ap-border-outline ap-mx-2"
-        *ngIf="(projectEnabled$ | async) || (showPlatform$ | async) "></div>
+
     <!-- END EE -->
 
     <div mat-menu-item [matMenuTriggerFor]="languagesList" class="ap-flex ap-items-center">

@@ -3,7 +3,9 @@ import {
     AppConnection,
     AppConnectionWithoutSensitiveData,
     ListAppConnectionsRequestQuery,
+    Permission,
     PrincipalType,
+    SERVICE_KEY_SECURITY_OPENAPI,
     SeekPage,
     UpsertAppConnectionRequestBody,
 } from '@activepieces/shared'
@@ -95,9 +97,11 @@ const removeSensitiveData = (
 const UpsertAppConnectionRequest = {
     config: {
         allowedPrincipals: [PrincipalType.USER, PrincipalType.SERVICE],
+        permission: Permission.WRITE_APP_CONNECTION,
     },
     schema: {
         tags: ['app-connections'],
+        security: [SERVICE_KEY_SECURITY_OPENAPI],
         description: 'Upsert an app connection based on the app name',
         body: UpsertAppConnectionRequestBody,
         Response: {
@@ -109,9 +113,11 @@ const UpsertAppConnectionRequest = {
 const ListAppConnectionsRequest = {
     config: {
         allowedPrincipals: [PrincipalType.USER, PrincipalType.SERVICE],
+        permission: Permission.READ_APP_CONNECTION,
     },
     schema: {
         tags: ['app-connections'],
+        security: [SERVICE_KEY_SECURITY_OPENAPI],
         querystring: ListAppConnectionsRequestQuery,
         description: 'List app connections',
         response: {
@@ -123,9 +129,11 @@ const ListAppConnectionsRequest = {
 const DeleteAppConnectionRequest = {
     config: {
         allowedPrincipals: [PrincipalType.USER, PrincipalType.SERVICE],
+        permission: Permission.WRITE_APP_CONNECTION,
     },
     schema: {
         tags: ['app-connections'],
+        security: [SERVICE_KEY_SECURITY_OPENAPI],
         description: 'Delete an app connection',
         params: Type.Object({
             id: ApId,

@@ -2,7 +2,9 @@ import {
   createAction,
   Property,
   StoreScope,
+  Validators,
 } from '@activepieces/pieces-framework';
+import { common, getScopeAndKey } from './common';
 
 export const storageRemoveValue = createAction({
   name: 'remove_value',
@@ -20,33 +22,19 @@ export const storageRemoveValue = createAction({
     key: Property.ShortText({
       displayName: 'Key',
       required: true,
+      validators: [Validators.maxLength(128)]
     }),
-    store_scope: Property.StaticDropdown({
-      displayName: 'Store Scope',
-      description: 'The storage scope of the value.',
-      required: true,
-      options: {
-        options: [
-          {
-            label: 'Project',
-            value: StoreScope.PROJECT,
-          },
-          {
-            label: 'Flow',
-            value: StoreScope.FLOW,
-          },
-        ],
-      },
-      defaultValue: StoreScope.PROJECT,
-    }),
+    store_scope: common.store_scope,
   },
   async run(context) {
-    await context.store.delete(
-      context.propsValue['key'],
-      context.propsValue.store_scope
-    );
+    const { key, scope } = getScopeAndKey({
+      runId: context.run.id,
+      key: context.propsValue['key'],
+      scope: context.propsValue.store_scope,
+    });
+    await context.store.delete(key, scope);
     return {
-      succuss: true,
+      success: true,
     };
   },
 });

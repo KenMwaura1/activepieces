@@ -29,11 +29,16 @@ export interface ScheduledTriggerInputFormSchema extends InputFormsSchemaBase {
   cronExpression: string;
 }
 
-export interface PieceActionInputFormSchema extends InputFormsSchemaBase {
+type CommonPieceFormsProps = {
   packageType: PackageType;
   pieceType: PieceType;
   pieceName: string;
+  pieceDisplayName: string;
   pieceVersion: string;
+};
+export interface PieceActionInputFormSchema
+  extends InputFormsSchemaBase,
+    CommonPieceFormsProps {
   actionName: string;
   input: ConfigsAndTheirValues;
   inputUiInfo: {
@@ -42,13 +47,14 @@ export interface PieceActionInputFormSchema extends InputFormsSchemaBase {
   errorHandlingOptions?: ActionErrorHandlingOptions;
 }
 
-export interface ComponentTriggerInputFormSchema extends InputFormsSchemaBase {
-  packageType: PackageType;
-  pieceType: PieceType;
-  pieceName: string;
-  pieceVersion: string;
+export interface PieceTriggerInputFormSchema
+  extends InputFormsSchemaBase,
+    CommonPieceFormsProps {
   triggerName: string;
   input: ConfigsAndTheirValues;
+  inputUiInfo: {
+    customizedInputs: Record<string, boolean>;
+  };
 }
 
 export type InputFormsSchema =

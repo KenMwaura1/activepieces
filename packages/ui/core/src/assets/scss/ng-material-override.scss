@@ -1,6 +1,5 @@
 @use "@angular/material" as mat;
 @use "material-theme-helper.scss";
-@import "@angular/material/theming";
 @include mat.core();
 $ap-typography: mat.define-typography-config(
   $font-family: $font-family,
@@ -101,23 +100,23 @@ $ap-typography: mat.define-typography-config(
     ),
 );
 @layer utilities {
-  .ap-typography-headline-1 {
+  h1, .ap-typography-headline-1 {
     @include mat.typography-level($ap-typography, "headline-1");
   }
-  .ap-typography-headline-2 {
+  h2,.ap-typography-headline-2 {
     @include mat.typography-level($ap-typography, "headline-2");
   }
-  .ap-typography-headline-3 {
+ h3, .ap-typography-headline-3 {
     @include mat.typography-level($ap-typography, "headline-3");
   }
-  .ap-typography-headline-4 {
+  h4,.ap-typography-headline-4 {
     @include mat.typography-level($ap-typography, "headline-4");
   }
-  .ap-typography-headline-5 {
+  h5,.ap-typography-headline-5 {
     @include mat.typography-level($ap-typography, "headline-5");
   }
 
-  .ap-typography-headline-6 {
+  h6,.ap-typography-headline-6 {
     @include mat.typography-level($ap-typography, "headline-6");
   }
 
@@ -737,3 +736,28 @@ app-platform-settings {
 
 @include mat.form-field-density(-2);
 @include mat.button-density(0);
+
+
+.suggested-actions-or-triggers
+{
+  .mat-mdc-standard-chip:not(.mdc-evolution-chip--disabled)
+  {
+    background-color: var(--primary-palette-50) ;
+    color: var(--primary-palette-contrast-400);
+  }
+}
+
+.mat-calendar-body-cell:not(.mat-calendar-body-disabled):hover >
+ .mat-calendar-body-cell-content:not(.mat-calendar-body-selected):not(.mat-calendar-body-comparison-identical),
+ .cdk-keyboard-focused .mat-calendar-body-active > .mat-calendar-body-cell-content:not(.mat-calendar-body-selected):not(.mat-calendar-body-comparison-identical), .cdk-program-focused .mat-calendar-body-active >
+  .mat-calendar-body-cell-content:not(.mat-calendar-body-selected):not(.mat-calendar-body-comparison-identical) {
+  color: var(--primary-palette-contrast-400);
+}
+
+app-templates-dialog
+{
+  mat-tab-header{ display: none !important; }
+}
+.ap-opacity-100 * {
+  opacity: 1 !important;
+}

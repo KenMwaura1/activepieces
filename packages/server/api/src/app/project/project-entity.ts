@@ -4,12 +4,11 @@ import {
     Flow,
     Folder,
     Project,
-    ProjectType,
+    Platform,
     TriggerEvent,
     User,
 } from '@activepieces/shared'
 import { ApIdSchema, BaseColumnSchemaPart } from '../database/database-common'
-import { Platform } from '@activepieces/ee-shared'
 
 type ProjectSchema = Project & {
     owner: User
@@ -32,14 +31,8 @@ export const ProjectEntity = new EntitySchema<ProjectSchema>({
         notifyStatus: {
             type: String,
         },
-        type: {
-            type: String,
-            nullable: false,
-            default: ProjectType.STANDALONE,
-        },
         platformId: {
             ...ApIdSchema,
-            nullable: true,
         },
         externalId: {
             type: String,
@@ -59,6 +52,25 @@ export const ProjectEntity = new EntitySchema<ProjectSchema>({
         },
     ],
     relations: {
+        owner: {
+            type: 'many-to-one',
+            target: 'user',
+            joinColumn: {
+                name: 'ownerId',
+                foreignKeyConstraintName: 'fk_project_owner_id',
+            },
+        },
+        platform: {
+            type: 'many-to-one',
+            target: 'platform',
+            cascade: true,
+            onDelete: 'RESTRICT',
+            onUpdate: 'RESTRICT',
+            joinColumn: {
+                name: 'platformId',
+                foreignKeyConstraintName: 'fk_project_platform_id',
+            },
+        },
         folders: {
             type: 'one-to-many',
             target: 'folder',
@@ -68,14 +80,6 @@ export const ProjectEntity = new EntitySchema<ProjectSchema>({
             type: 'one-to-many',
             target: 'app_connection',
             inverseSide: 'project',
-        },
-        owner: {
-            type: 'many-to-one',
-            target: 'user',
-            joinColumn: {
-                name: 'ownerId',
-                foreignKeyConstraintName: 'fk_project_owner_id',
-            },
         },
         events: {
             type: 'one-to-many',

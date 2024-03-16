@@ -1,8 +1,9 @@
 import {
   createAction,
   Property,
-  StoreScope,
+  Validators,
 } from '@activepieces/pieces-framework';
+import { common, getScopeAndKey } from './common';
 
 export const storagePutAction = createAction({
   name: 'put',
@@ -20,35 +21,24 @@ export const storagePutAction = createAction({
     key: Property.ShortText({
       displayName: 'Key',
       required: true,
+      validators: [Validators.maxLength(128)]
     }),
     value: Property.ShortText({
       displayName: 'Value',
       required: true,
     }),
-    store_scope: Property.StaticDropdown({
-      displayName: 'Store Scope',
-      description: 'The storage scope of the value.',
-      required: true,
-      options: {
-        options: [
-          {
-            label: 'Project',
-            value: StoreScope.PROJECT,
-          },
-          {
-            label: 'Flow',
-            value: StoreScope.FLOW,
-          },
-        ],
-      },
-      defaultValue: StoreScope.PROJECT,
-    }),
+    store_scope: common.store_scope,
   },
   async run(context) {
+    const { key, scope } = getScopeAndKey({
+      runId: context.run.id,
+      key: context.propsValue['key'],
+      scope: context.propsValue.store_scope,
+    });
     return await context.store.put(
-      context.propsValue['key'],
+      key,
       context.propsValue['value'],
-      context.propsValue.store_scope
+     scope
     );
   },
 });

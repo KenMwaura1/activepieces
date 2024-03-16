@@ -1,6 +1,7 @@
 <nav class="navbar-container ap-bg-header ap-py-4 ap-pr-3 navbar-expand ap-relative"
   [class.ap-pl-3]="(showNavigation$ | async )=== false" [style.height]="FLOW_BUILDER_HEADER_HEIGHT">
-  <div class="ap-absolute ap-w-full ap-flex ap-items-center ap-justify-center ap-p-3 ap-pointer-events-none">
+  <div
+    class="ap-absolute ap-w-full ap-h-full ap-left-0 ap-top-0 ap-flex ap-items-center ap-justify-center ap-p-3 ap-pointer-events-none">
     <div class="ap-h-[30px]">
       <img [src]=" (fullLogo$| async) ||'assets/img/custom/logo/full-logo.svg'" class="ap-max-w-full ap-h-full">
     </div>
@@ -14,7 +15,7 @@
         iconUrl="assets/img/custom/dashboard/home.svg" tooltipText="Home" i18n-tooltipText
         (buttonClicked)="redirectHome(false)" (auxclick)="redirectHome(true)"></ap-icon-button>
       <div class="ap-flex-grow ap-flex ap-items-center ap-gap-2" #spacer>
-        <ng-container *ngIf="showNavigation$ | async">
+        <ng-container *ngIf="(showNavigation$ | async) && (hideFolders$ | async) === false">
           <div class="ap-typography-body-1 ap-truncate ap-max-w-[150px] ap-cursor-pointer hover:ap-text-[#000000]"
             #folderName (click)="openDashboardToFolder()"
             [matTooltip]=" goToFolder +' ('+ ((folderDisplayName$ | async) || '' ) +')'">

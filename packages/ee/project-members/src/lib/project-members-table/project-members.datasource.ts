@@ -10,11 +10,7 @@ import {
   catchError,
   of,
 } from 'rxjs';
-import {
-  ProjectMember,
-  ProjectMemberRole,
-  ProjectMemberStatus,
-} from '@activepieces/ee-shared';
+import { ProjectMember, ProjectMemberStatus } from '@activepieces/ee-shared';
 import { ProjectMemberService } from '../service/project-members.service';
 import {
   ApPaginatorComponent,
@@ -23,6 +19,7 @@ import {
   LIMIT_QUERY_PARAM,
 } from '@activepieces/ui/common';
 import { Params } from '@angular/router';
+import { ProjectMemberRole } from '@activepieces/shared';
 
 /**
  * Data source for the LogsTable view. This class should
@@ -36,7 +33,7 @@ export class ProjectMembersTableDataSource extends DataSource<ProjectMember> {
     private authenticationService: AuthenticationService,
     private projectMemberService: ProjectMemberService,
     private refresh$: Observable<boolean>,
-    private fakeData: boolean = false,
+    private fakeData = false,
     private paginator: ApPaginatorComponent,
     private queryParams$: Observable<Params>
   ) {

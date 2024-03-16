@@ -1,10 +1,13 @@
 import { FastifyPluginAsyncTypebox } from '@fastify/type-provider-typebox'
-import { AdminAddPlatformRequestBody } from '@activepieces/ee-shared'
 import { StatusCodes } from 'http-status-codes'
 import { adminPlatformService } from './admin-platform.service'
-import { PrincipalType } from '@activepieces/shared'
+import { AdminAddPlatformRequestBody, PrincipalType } from '@activepieces/shared'
 
-export const adminPlatformController: FastifyPluginAsyncTypebox = async (
+export const adminPlatformPieceModule: FastifyPluginAsyncTypebox = async (app) => {
+    await app.register(adminPlatformController, { prefix: '/v1/admin/platforms' })
+}
+
+const adminPlatformController: FastifyPluginAsyncTypebox = async (
     app,
 ) => {
     app.post('/', AdminAddPlatformRequest, async (req, res) => {

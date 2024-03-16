@@ -21,6 +21,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { BuilderSelectors } from '../builder/builder.selector';
 import { UUID } from 'angular2-uuid';
 import { BuilderActions } from '../builder/builder.action';
+import { PannerService } from '@activepieces/ui-canvas-utils';
 import {
   ActionType,
   PopulatedFlow,
@@ -39,6 +40,7 @@ import {
   FlowService,
   environment,
   FlowBuilderService,
+  appConnectionsActions,
 } from '@activepieces/ui/common';
 import { canvasActions } from '../builder/canvas/canvas.action';
 import { ViewModeActions } from '../builder/viewmode/view-mode.action';
@@ -47,10 +49,10 @@ import { HttpStatusCode } from '@angular/common/http';
 import { FlowStructureUtil } from '../../utils/flowStructureUtil';
 @Injectable()
 export class FlowsEffects {
-  loadInitial$ = createEffect(() => {
+  initialiseFlowState$ = createEffect(() => {
     return this.actions$.pipe(
       ofType(BuilderActions.loadInitial),
-      switchMap(({ type, flow, run, publishedVersion }) => {
+      switchMap(({ flow, run, publishedVersion }) => {
         return of(
           FlowsActions.setInitial({
             flow: { ...flow, publishedFlowVersion: publishedVersion },
@@ -64,8 +66,22 @@ export class FlowsEffects {
       })
     );
   });
+  initialiseConnectionsState$ = createEffect(() => {
+    return this.actions$.pipe(
+      ofType(BuilderActions.loadInitial),
+      switchMap(({ appConnections }) => {
+        return of(
+          appConnectionsActions.loadInitial({ connections: appConnections })
+        );
+      }),
+      catchError((err) => {
+        console.error(err);
+        throw err;
+      })
+    );
+  });
 
-  replaceTrigger = createEffect(() => {
+  replaceTrigger$ = createEffect(() => {
     return this.actions$.pipe(
       ofType(FlowsActions.updateTrigger),
       concatLatestFrom(() =>
@@ -80,13 +96,14 @@ export class FlowsEffects {
       })
     );
   });
+
   selectFirstInvalidStep$ = createEffect(() => {
     return this.actions$.pipe(
       ofType(FlowsActions.selectFirstInvalidStep),
       concatLatestFrom(() =>
         this.store.select(BuilderSelectors.selectCurrentFlow)
       ),
-      switchMap(([action, flow]) => {
+      switchMap(([_, flow]) => {
         const invalidSteps = flowHelper
           .getAllSteps(flow.version.trigger)
           .filter((s) => !s.valid);
@@ -97,16 +114,12 @@ export class FlowsEffects {
             })
           );
         }
-        return of(
-          canvasActions.selectStepByName({
-            stepName: flow.version.trigger.name,
-          })
-        );
+        return EMPTY;
       })
     );
   });
 
-  deleteStep = createEffect(() => {
+  deleteStep$ = createEffect(() => {
     return this.actions$.pipe(
       ofType(FlowsActions.deleteAction),
       concatLatestFrom(() => [
@@ -147,7 +160,7 @@ export class FlowsEffects {
     );
   });
 
-  addStep = createEffect(() => {
+  addStep$ = createEffect(() => {
     return this.actions$.pipe(
       ofType(FlowsActions.addAction),
       concatLatestFrom(() =>
@@ -161,7 +174,7 @@ export class FlowsEffects {
     );
   });
 
-  stepSelectedEffect = createEffect(() => {
+  stepSelected$ = createEffect(() => {
     return this.actions$.pipe(
       ofType(canvasActions.selectStepByName),
       concatLatestFrom(() => [
@@ -189,7 +202,6 @@ export class FlowsEffects {
             case ActionType.CODE:
             case ActionType.LOOP_ON_ITEMS:
             case TriggerType.PIECE:
-            case TriggerType.WEBHOOK:
             case ActionType.PIECE: {
               const actionsToDispatch: Array<any> = [
                 canvasActions.setRightSidebar({
@@ -546,13 +558,26 @@ export class FlowsEffects {
     );
   });
 
+  flowImported$ = createEffect(
+    () => {
+      return this.actions$.pipe(
+        ofType(FlowsActions.importFlow),
+        tap((res) => {
+          this.pannerService.resetZoom(res.flow.version);
+        })
+      );
+    },
+    { dispatch: false }
+  );
+
   constructor(
     private pieceBuilderService: FlowBuilderService,
     private flowService: FlowService,
     private store: Store,
     private actions$: Actions,
     private snackBar: MatSnackBar,
-    private builderAutocompleteService: BuilderAutocompleteMentionsDropdownService
+    private builderAutocompleteService: BuilderAutocompleteMentionsDropdownService,
+    private pannerService: PannerService
   ) {}
 
   private setLastSaveDate() {

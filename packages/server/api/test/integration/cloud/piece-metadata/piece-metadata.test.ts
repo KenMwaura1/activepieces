@@ -9,14 +9,14 @@ import {
 } from '../../../helpers/mocks'
 import { StatusCodes } from 'http-status-codes'
 import { FastifyInstance } from 'fastify'
-import { FilteredPieceBehavior } from '@activepieces/ee-shared'
 import {
+    FilteredPieceBehavior,
     PieceType,
     PlatformRole,
     PrincipalType,
-    ProjectType,
     apId,
 } from '@activepieces/shared'
+import { logger } from 'server-shared'
 
 let app: FastifyInstance | null = null
 
@@ -58,7 +58,6 @@ describe('Piece Metadata API', () => {
 
             const mockProject = createMockProject({
                 platformId: mockPlatform.id,
-                type: ProjectType.PLATFORM_MANAGED,
                 ownerId: mockUser.id,
             })
             await databaseConnection.getRepository('project').save([mockProject])
@@ -90,6 +89,7 @@ describe('Piece Metadata API', () => {
             const mockPieceMetadata = createMockPieceMetadata({
                 name: '@activepieces/a',
                 pieceType: PieceType.OFFICIAL,
+                displayName: 'a',
             })
             await databaseConnection
                 .getRepository('piece_metadata')
@@ -151,12 +151,10 @@ describe('Piece Metadata API', () => {
 
             const mockProject = createMockProject({
                 platformId: mockPlatform.id,
-                type: ProjectType.PLATFORM_MANAGED,
                 ownerId: mockUser.id,
             })
             const mockProject2 = createMockProject({
                 platformId: mockPlatform.id,
-                type: ProjectType.PLATFORM_MANAGED,
                 ownerId: mockUser.id,
             })
             await databaseConnection
@@ -168,21 +166,25 @@ describe('Piece Metadata API', () => {
                 name: 'a',
                 pieceType: PieceType.CUSTOM,
                 projectId: mockProject.id,
+                displayName: 'a',
             })
             const mockPieceMetadataB = createMockPieceMetadata({
                 name: 'b',
                 pieceType: PieceType.OFFICIAL,
+                displayName: 'b',
             })
             const mockPieceMetadataC = createMockPieceMetadata({
                 name: 'c',
                 pieceType: PieceType.CUSTOM,
                 projectId: mockProject2.id,
                 platformId: mockPlatform.id,
+                displayName: 'c',
             })
             const mockPieceMetadataD = createMockPieceMetadata({
                 name: 'd',
                 pieceType: PieceType.CUSTOM,
                 platformId: mockPlatform.id,
+                displayName: 'd',
             })
             await databaseConnection
                 .getRepository('piece_metadata')
@@ -226,11 +228,20 @@ describe('Piece Metadata API', () => {
             const mockUser = createMockUser()
             await databaseConnection.getRepository('user').save([mockUser])
 
+            const mockPlatform = createMockPlatform({
+                ownerId: mockUser.id,
+                filteredPieceNames: [],
+                filteredPieceBehavior: FilteredPieceBehavior.BLOCKED,
+            })
+            await databaseConnection.getRepository('platform').save([mockPlatform])
+
             const mockProject = createMockProject({
                 ownerId: mockUser.id,
+                platformId: mockPlatform.id,
             })
             const mockProject2 = createMockProject({
                 ownerId: mockUser.id,
+                platformId: mockPlatform.id,
             })
             await databaseConnection
                 .getRepository('project')
@@ -241,15 +252,18 @@ describe('Piece Metadata API', () => {
                 name: 'a',
                 pieceType: PieceType.CUSTOM,
                 projectId: mockProject.id,
+                displayName: 'a',
             })
             const mockPieceMetadataB = createMockPieceMetadata({
                 name: 'b',
                 pieceType: PieceType.OFFICIAL,
+                displayName: 'b',
             })
             const mockPieceMetadataC = createMockPieceMetadata({
                 name: 'c',
                 pieceType: PieceType.CUSTOM,
                 projectId: mockProject2.id,
+                displayName: 'c',
             })
             await databaseConnection
                 .getRepository('piece_metadata')
@@ -259,6 +273,10 @@ describe('Piece Metadata API', () => {
                 type: PrincipalType.USER,
                 projectId: mockProject.id,
                 id: mockUser.id,
+                platform: {
+                    id: mockPlatform.id,
+                    role: PlatformRole.MEMBER,
+                },
             })
 
             // act
@@ -284,16 +302,26 @@ describe('Piece Metadata API', () => {
             const mockPieceMetadataA = createMockPieceMetadata({
                 name: 'a',
                 pieceType: PieceType.OFFICIAL,
+                displayName: 'a',
             })
             const mockPieceMetadataB = createMockPieceMetadata({
                 name: 'b',
                 pieceType: PieceType.OFFICIAL,
+                displayName: 'b',
             })
             await databaseConnection
                 .getRepository('piece_metadata')
                 .save([mockPieceMetadataA, mockPieceMetadataB])
 
-            const testToken = await generateMockToken()
+            const testToken = await generateMockToken({
+                type: PrincipalType.UNKNOWN,
+                id: apId(),
+                projectId: apId(),
+                platform: {
+                    id: apId(),
+                    role: PlatformRole.MEMBER,
+                },
+            })
 
             // act
             const response = await app?.inject({
@@ -306,6 +334,7 @@ describe('Piece Metadata API', () => {
 
             // assert
             const responseBody = response?.json()
+            logger.error(responseBody)
 
             expect(response?.statusCode).toBe(StatusCodes.OK)
             expect(responseBody).toHaveLength(2)
@@ -329,10 +358,12 @@ describe('Piece Metadata API', () => {
             const mockPieceMetadataA = createMockPieceMetadata({
                 name: 'a',
                 pieceType: PieceType.OFFICIAL,
+                displayName: 'a',
             })
             const mockPieceMetadataB = createMockPieceMetadata({
                 name: 'b',
                 pieceType: PieceType.OFFICIAL,
+                displayName: 'b',
             })
             await databaseConnection
                 .getRepository('piece_metadata')
@@ -379,10 +410,12 @@ describe('Piece Metadata API', () => {
             const mockPieceMetadataA = createMockPieceMetadata({
                 name: 'a',
                 pieceType: PieceType.OFFICIAL,
+                displayName: 'a',
             })
             const mockPieceMetadataB = createMockPieceMetadata({
                 name: 'b',
                 pieceType: PieceType.OFFICIAL,
+                displayName: 'b',
             })
             await databaseConnection
                 .getRepository('piece_metadata')

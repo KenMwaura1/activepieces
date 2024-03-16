@@ -27,6 +27,7 @@ import { redisQueueManager } from './queues/redis/redis-queue'
 import { QueueMode, SystemProp, enrichErrorContext, exceptionHandler, logger, system } from 'server-shared'
 import { flowService } from '../../flows/flow/flow.service'
 import { triggerHooks } from '../../flows/trigger'
+import { dedupeService } from '../../flows/trigger/dedupe'
 
 const queueMode = system.getOrThrow<QueueMode>(SystemProp.QUEUE_MODE)
 
@@ -128,7 +129,7 @@ const consumeDelayedJob = async (data: DelayedJobData): Promise<void> => {
 
 const consumeRepeatingJob = async (data: RepeatingJobData): Promise<void> => {
     try {
-    // TODO REMOVE AND FIND PERMANENT SOLUTION
+        // TODO REMOVE AND FIND PERMANENT SOLUTION
         const flow = await flowService.getOne({
             id: data.flowId,
             projectId: data.projectId,
@@ -136,14 +137,10 @@ const consumeRepeatingJob = async (data: RepeatingJobData): Promise<void> => {
 
         if (
             isNil(flow) ||
-      flow.status !== FlowStatus.ENABLED ||
-      flow.publishedVersionId !== data.flowVersionId
+            flow.status !== FlowStatus.ENABLED ||
+            flow.publishedVersionId !== data.flowVersionId
         ) {
-            exceptionHandler.handle(
-                new Error(
-                    `[repeatableJobConsumer] removing project.id=${data.projectId} instance.flowVersionId=${flow?.publishedVersionId} data.flowVersion.id=${data.flowVersionId}`,
-                ),
-            )
+            
 
             const flowVersion = await flowVersionService.getOne(data.flowVersionId)
             if (isNil(flowVersion)) {
@@ -159,6 +156,11 @@ const consumeRepeatingJob = async (data: RepeatingJobData): Promise<void> => {
                     ignoreError: true,
                 })
             }
+            exceptionHandler.handle(
+                new Error(
+                    `[repeatableJobConsumer] removing project.id=${data.projectId} instance.flowVersionId=${flow?.publishedVersionId} data.flowVersion.id=${data.flowVersionId}`,
+                ),
+            )
 
             return
         }
@@ -170,7 +172,7 @@ const consumeRepeatingJob = async (data: RepeatingJobData): Promise<void> => {
     catch (e) {
         if (
             e instanceof ActivepiecesError &&
-      e.error.code === ErrorCode.QUOTA_EXCEEDED
+            e.error.code === ErrorCode.QUOTA_EXCEEDED
         ) {
             logger.info(
                 `[repeatableJobConsumer] removing project.id=${data.projectId} run out of flow quota`,
@@ -203,7 +205,11 @@ const consumePieceTrigger = async (data: RepeatingJobData): Promise<void> => {
         `[flowQueueConsumer#consumePieceTrigger] payloads.length=${payloads.length}`,
     )
 
-    const createFlowRuns = payloads.map((payload) =>
+    const filterPayloads = await dedupeService.filterUniquePayloads(
+        data.flowVersionId,
+        payloads,
+    )
+    const createFlowRuns = filterPayloads.map((payload) =>
         flowRunService.start({
             environment: RunEnvironment.PRODUCTION,
             flowVersionId: data.flowVersionId,

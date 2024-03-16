@@ -1,32 +1,36 @@
-import { ChangeDetectionStrategy, Component, Inject } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  Inject,
+  ViewChild,
+} from '@angular/core';
 import { FormControl, FormGroup } from '@angular/forms';
 import {
   BehaviorSubject,
   Observable,
+  Subject,
   debounceTime,
   map,
   shareReplay,
   startWith,
   switchMap,
   tap,
+  take,
 } from 'rxjs';
-import {
-  FlowTemplate,
-  FolderId,
-  TelemetryEventName,
-} from '@activepieces/shared';
+import { FlowTemplate, TelemetryEventName } from '@activepieces/shared';
 
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { TelemetryService, TemplatesService } from '@activepieces/ui/common';
+import { MatTabGroup } from '@angular/material/tabs';
 
 export interface TemplateDialogData {
   insideBuilder: boolean;
-  folderId$?: Observable<FolderId | undefined>;
+  showStartFromScratch?: boolean;
 }
 type tabsNames = 'all ideas' | 'featured';
-
+const START_FROM_SCRATCH = 'Start from scratch';
 export interface TemplateDialogClosingResult {
-  template: FlowTemplate;
+  template: FlowTemplate | typeof START_FROM_SCRATCH;
   activeTab: tabsNames;
 }
 
@@ -36,6 +40,9 @@ export interface TemplateDialogClosingResult {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class TemplatesDialogComponent {
+  @ViewChild(MatTabGroup) matTabGroup!: MatTabGroup;
+  descriptionTemplate$: Subject<FlowTemplate | undefined> = new Subject();
+  readonly ANIMATION_DURATION = 500;
   dialogForm: FormGroup<{
     search: FormControl<string>;
     tags: FormControl<string[]>;
@@ -80,16 +87,15 @@ export class TemplatesDialogComponent {
       }),
       shareReplay(1)
     );
-    this.filters$ = this.templates$
-      .pipe(
-        map((templates) => {
-          const tags = templates.flatMap((template) => template.tags);
-          const uniqueTags = Array.from(new Set(tags));
-          const sortedTags = uniqueTags.sort();
-          return sortedTags.filter((tag) => tag !== '');
-        })
-      )
-      .pipe(shareReplay(1));
+    this.filters$ = this.templates$.pipe(
+      take(1),
+      map((templates) => {
+        const tags = templates.flatMap((template) => template.tags);
+        const uniqueTags = Array.from(new Set(tags));
+        const sortedTags = uniqueTags.sort();
+        return sortedTags.filter((tag) => tag !== '');
+      })
+    );
   }
   useTemplate(template: FlowTemplate, tab: tabsNames) {
     const result: TemplateDialogClosingResult = {
@@ -101,5 +107,23 @@ export class TemplatesDialogComponent {
 
   closeDialog() {
     this.dialogRef.close();
+  }
+
+  startFromScratch() {
+    const result: TemplateDialogClosingResult = {
+      template: START_FROM_SCRATCH,
+      activeTab: 'all ideas',
+    };
+    this.dialogRef.close(result);
+  }
+  showTemplateDescription(template: FlowTemplate) {
+    this.matTabGroup.selectedIndex = 1;
+    this.descriptionTemplate$.next(template);
+  }
+  backToTemplates() {
+    this.matTabGroup.selectedIndex = 0;
+    setTimeout(() => {
+      this.descriptionTemplate$.next(undefined);
+    }, this.ANIMATION_DURATION);
   }
 }

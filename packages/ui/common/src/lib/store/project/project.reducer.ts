@@ -1,6 +1,6 @@
 import { Action, createReducer, on } from '@ngrx/store';
-import { ProjectsState } from '../common-state.model';
 import { ProjectActions } from './project.action';
+import { ProjectsState } from './project-state.model';
 
 const initialState: ProjectsState = {
   selectedIndex: 0,
@@ -26,6 +26,22 @@ const _projectReducer = createReducer(
       };
     }
   ),
+  on(ProjectActions.updateLimits, (state, { limits }): ProjectsState => {
+    const updatedProjects = [...state.projects];
+    updatedProjects[state.selectedIndex] = {
+      ...state.projects[state.selectedIndex],
+      plan: {
+        ...state.projects[state.selectedIndex].plan,
+        tasks: limits.tasks,
+      },
+    };
+
+    return {
+      platform: state.platform,
+      projects: updatedProjects,
+      selectedIndex: state.selectedIndex,
+    };
+  }),
   on(
     ProjectActions.setProjects,
     (_state, { projects, platform, selectedIndex }): ProjectsState => {

@@ -17,7 +17,7 @@ const Action = Type.Object({
     description: Type.String(),
     requireAuth: Type.Boolean(),
     props: Type.Unknown(),
-    errorHandlingOptions: ErrorHandlingOptionsParam,
+    errorHandlingOptions: Type.Optional(ErrorHandlingOptionsParam),
 })
 
 const Trigger = Type.Composite([
@@ -39,6 +39,7 @@ export const CreatePieceRequest = {
             description: Type.Optional(Type.String()),
             version: ExactVersionType,
             auth: Type.Optional(Type.Any()),
+            authors: Type.Array(Type.String()),
             categories: Type.Optional(Type.Array(Type.Enum(PieceCategory))),
             minimumSupportedRelease: ExactVersionType,
             maximumSupportedRelease: ExactVersionType,

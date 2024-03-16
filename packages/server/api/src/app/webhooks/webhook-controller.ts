@@ -1,7 +1,7 @@
 import { FastifyReply, FastifyRequest } from 'fastify'
 import { StatusCodes } from 'http-status-codes'
 import {
-    ALL_PRINICPAL_TYPES,
+    ALL_PRINCIPAL_TYPES,
     ActivepiecesError,
     ApEdition,
     ErrorCode,
@@ -16,17 +16,17 @@ import { isNil } from '@activepieces/shared'
 import { flowRepo } from '../flows/flow/flow.repo'
 import { FastifyPluginAsyncTypebox } from '@fastify/type-provider-typebox'
 import { getEdition } from '../helper/secret-helper'
-import { tasksLimit } from '../ee/billing/limits/tasks-limit'
 import { flowResponseWatcher } from '../flows/flow-run/flow-response-watcher'
 import { flowService } from '../flows/flow/flow.service'
 import { exceptionHandler, logger } from 'server-shared'
+import { tasksLimit } from '../ee/project-plan/tasks-limit'
 
 export const webhookController: FastifyPluginAsyncTypebox = async (app) => {
     app.all(
         '/:flowId/sync',
         {
             config: {
-                allowedPrincipals: ALL_PRINICPAL_TYPES,
+                allowedPrincipals: ALL_PRINCIPAL_TYPES,
             },
             schema: {
                 params: WebhookUrlParams,
@@ -55,7 +55,7 @@ export const webhookController: FastifyPluginAsyncTypebox = async (app) => {
                 await reply.status(StatusCodes.NOT_FOUND).send()
                 return
             }
-            const response = await flowResponseWatcher.listen(run.id)
+            const response = await flowResponseWatcher.listen(run.id, true)
             await reply
                 .status(response.status)
                 .headers(response.headers)
@@ -67,7 +67,7 @@ export const webhookController: FastifyPluginAsyncTypebox = async (app) => {
         '/:flowId',
         {
             config: {
-                allowedPrincipals: ALL_PRINICPAL_TYPES,
+                allowedPrincipals: ALL_PRINCIPAL_TYPES,
             },
             schema: {
                 params: WebhookUrlParams,
@@ -89,7 +89,7 @@ export const webhookController: FastifyPluginAsyncTypebox = async (app) => {
         '/',
         {
             config: {
-                allowedPrincipals: ALL_PRINICPAL_TYPES,
+                allowedPrincipals: ALL_PRINCIPAL_TYPES,
             },
             schema: {
                 querystring: WebhookUrlParams,
@@ -114,7 +114,7 @@ export const webhookController: FastifyPluginAsyncTypebox = async (app) => {
         '/:flowId/simulate',
         {
             config: {
-                allowedPrincipals: ALL_PRINICPAL_TYPES,
+                allowedPrincipals: ALL_PRINCIPAL_TYPES,
             },
             schema: {
                 params: WebhookUrlParams,

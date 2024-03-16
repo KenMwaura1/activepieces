@@ -12,6 +12,7 @@ import {
     PlatformRole,
     Principal,
     PrincipalType,
+    SERVICE_KEY_SECURITY_OPENAPI,
 } from '@activepieces/shared'
 import { pieceService } from '../../pieces/piece-service'
 import { StatusCodes } from 'http-status-codes'
@@ -34,6 +35,7 @@ const platformPieceController: FastifyPluginCallbackTypebox = (
             },
             schema: {
                 tags: ['pieces'],
+                security: [SERVICE_KEY_SECURITY_OPENAPI],
                 summary: 'Add a piece to a platform',
                 description: 'Add a piece to a platform',
                 body: AddPieceRequestBody,
@@ -43,7 +45,7 @@ const platformPieceController: FastifyPluginCallbackTypebox = (
             },
         },
         async (req, reply) => {
-            const platformId = req.principal.platform?.id
+            const platformId = req.principal.platform.id
             assertPrincipalIsPlatformOwner(req.body.scope, req.principal)
             assertProjectScopeOnlyAllowedForUser(req.body.scope, req.principal)
             await pieceService.installPiece(
@@ -63,7 +65,7 @@ function assertPrincipalIsPlatformOwner(
     principal: Principal,
 ): void {
     if (scope == PieceScope.PLATFORM) {
-        if (principal.platform?.role !== PlatformRole.OWNER) {
+        if (principal.platform.role !== PlatformRole.OWNER) {
             throw new ActivepiecesError({
                 code: ErrorCode.ENGINE_OPERATION_FAILURE,
                 params: {

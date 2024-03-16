@@ -22,13 +22,11 @@ import {
   AppConnectionsService,
   AuthenticationService,
   FlagService,
+  appConnectionsSelectors,
+  appConnectionsActions,
   fadeInUp400ms,
 } from '@activepieces/ui/common';
 import { ConnectionValidator } from '../../validators/connectionNameValidator';
-import {
-  BuilderSelectors,
-  appConnectionsActions,
-} from '@activepieces/ui/feature-builder-store';
 import {
   OAuth2PopupParams,
   OAuth2PopupResponse,
@@ -58,6 +56,7 @@ export type ManagedOAuth2ConnectionDialogData = {
     | AppConnectionType.CLOUD_OAUTH2
     | AppConnectionType.PLATFORM_OAUTH2;
   frontendUrl: string;
+  pieceDisplayName: string;
 };
 
 @Component({
@@ -121,7 +120,7 @@ export class ManagedOAuth2ConnectionDialogComponent implements OnInit {
           asyncValidators: [
             ConnectionValidator.createValidator(
               this.store
-                .select(BuilderSelectors.selectAllAppConnections)
+                .select(appConnectionsSelectors.selectAllAppConnections)
                 .pipe(take(1)),
               undefined
             ),
@@ -257,30 +256,34 @@ export class ManagedOAuth2ConnectionDialogComponent implements OnInit {
   }
 
   get cloudConnectionPopupSettings(): OAuth2PopupParams {
-    const { authUrl } = this.getAuthUrl();
+    const authUrl = this.resolveUrlWithProps(
+      this.dialogData.pieceAuthProperty.authUrl,
+      this.dialogData.pieceAuthProperty.props
+    );
+    const scope = this.resolveUrlWithProps(
+      this.dialogData.pieceAuthProperty.scope!.join(' '),
+      this.dialogData.pieceAuthProperty.props
+    );
     return {
       auth_url: authUrl,
       client_id: this._managedOAuth2ConnectionPopupSettings.client_id,
       extraParams: this.dialogData.pieceAuthProperty.extra || {},
       redirect_url: this._managedOAuth2ConnectionPopupSettings.redirect_url,
       pkce: this.dialogData.pieceAuthProperty.pkce,
-      scope: this.dialogData.pieceAuthProperty.scope!.join(' '),
+      scope: scope,
     };
   }
-
-  getAuthUrl() {
-    let authUrl = this.dialogData.pieceAuthProperty.authUrl;
-    if (this.dialogData.pieceAuthProperty.props) {
-      Object.keys(this.dialogData.pieceAuthProperty.props).forEach((key) => {
-        authUrl = authUrl.replaceAll(
-          `{${key}}`,
-          this.settingsForm.controls.props.value[key]
-        );
-      });
+  resolveUrlWithProps(url: string, props: Record<string, any> | undefined) {
+    if (!props) {
+      return url;
     }
-    return {
-      authUrl: authUrl,
-    };
+    Object.keys(props).forEach((key) => {
+      url = url.replaceAll(
+        `{${key}}`,
+        this.settingsForm.controls.props.value[key]
+      );
+    });
+    return url;
   }
 
   dropdownCompareWithFunction = (opt: any, formControlValue: any) => {

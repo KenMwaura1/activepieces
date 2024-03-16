@@ -21,7 +21,7 @@ import { appEventRoutingModule } from './app-event-routing/app-event-routing.mod
 import { triggerEventModule } from './flows/trigger-events/trigger-event.module'
 import { fastifyRawBody } from 'fastify-raw-body'
 import { stepFileModule } from './flows/step-file/step-file.module'
-import { rbacAuthMiddleware } from './ee/authentication/rbac-auth-middleware'
+import { rbacMiddleware } from './ee/authentication/rbac/rbac-middleware'
 import { userModule } from './user/user.module'
 import {
     ActivepiecesError,
@@ -31,12 +31,13 @@ import {
     CodeSandboxType,
     ErrorCode,
     Flow,
+    FlowRun,
+    ProjectWithLimits,
 } from '@activepieces/shared'
 import { appConnectionsHooks } from './app-connection/app-connection-service/app-connection-hooks'
 import { authenticationModule } from './authentication/authentication.module'
 import { cloudAppConnectionsHooks } from './ee/app-connections/cloud-app-connection-service'
 import { appCredentialModule } from './ee/app-credentials/app-credentials.module'
-import { appSumoModule } from './ee/appsumo/appsumo.module'
 import { connectionKeyModule } from './ee/connection-keys/connection-key.module'
 import { platformRunHooks } from './ee/flow-run/cloud-flow-run-hooks'
 import { platformFlowTemplateModule } from './ee/flow-template/platform-flow-template.module'
@@ -44,7 +45,6 @@ import { platformWorkerHooks } from './ee/flow-worker/cloud-flow-worker-hooks'
 import { initilizeSentry } from 'server-shared'
 import { adminPieceModule } from './ee/pieces/admin-piece-module'
 import { platformPieceServiceHooks } from './ee/pieces/piece-service/platform-piece-service-hooks'
-import { platformModule } from './ee/platform/platform.module'
 import { projectMemberModule } from './ee/project-members/project-member.module'
 import { platformProjectModule } from './ee/projects/platform-project-module'
 import { referralModule } from './ee/referrals/referral.module'
@@ -72,20 +72,17 @@ import { platformPieceModule } from './ee/pieces/platform-piece-module'
 import { otpModule } from './ee/otp/otp-module'
 import { cloudAuthenticationServiceHooks } from './ee/authentication/authentication-service/hooks/cloud-authentication-service-hooks'
 import { enterpriseLocalAuthnModule } from './ee/authentication/enterprise-local-authn/enterprise-local-authn-module'
-import { billingModule } from './ee/billing/billing/billing.module'
 import { federatedAuthModule } from './ee/authentication/federated-authn/federated-authn-module'
 import fastifyFavicon from 'fastify-favicon'
 import {
     ProjectMember,
-    ProjectWithUsageAndPlanResponse,
-    GitRepoWithoutSenestiveData,
+    GitRepoWithoutSensitiveData,
 } from '@activepieces/ee-shared'
 import { apiKeyModule } from './ee/api-keys/api-key-module'
 import { domainHelper } from './helper/domain-helper'
 import { platformDomainHelper } from './ee/helper/platform-domain-helper'
 import { enterpriseUserModule } from './ee/user/enterprise-user-module'
 import { flowResponseWatcher } from './flows/flow-run/flow-response-watcher'
-import { gitRepoModule } from './ee/git-repos/git-repo.module'
 import { securityHandlerChain } from './core/security/security-handler-chain'
 import { communityFlowTemplateModule } from './flow-templates/community-flow-template.module'
 import { copilotModule } from './copilot/copilot.module'
@@ -99,6 +96,15 @@ import { auditLogService } from './ee/audit-logs/audit-event-service'
 import { auditEventModule } from './ee/audit-logs/audit-event-module'
 import { ExecutionMode, QueueMode, SystemProp, system } from 'server-shared'
 import { loadEncryptionKey } from './helper/encryption'
+import { activityModule } from './ee/activity/activity-module'
+import { redisSystemJob } from './ee/helper/redis-system-job'
+import { usageTrackerModule } from './ee/usage-tracker/usage-tracker-module'
+import { projectBillingModule } from './ee/billing/project-billing/project-billing.module'
+import { appSumoModule } from './ee/billing/appsumo/appsumo.module'
+import { platformModule } from './platform/platform.module'
+import { gitRepoModule } from './ee/git-repos/git-repo.module'
+import { formModule } from './flows/flow/form/form.module'
+import { adminPlatformPieceModule } from './ee/platform/admin-platform.controller'
 
 export const setupApp = async (): Promise<FastifyInstance> => {
     const app = fastify({
@@ -127,13 +133,21 @@ export const setupApp = async (): Promise<FastifyInstance> => {
                 },
             ],
             components: {
+                securitySchemes: {
+                    apiKey: {
+                        type: 'http',
+                        description: 'Use your api key generated from the admin console',
+                        scheme: 'bearer',
+                    },
+                },
                 schemas: {
                     'project-member': ProjectMember,
-                    project: ProjectWithUsageAndPlanResponse,
+                    project: ProjectWithLimits,
                     flow: Flow,
+                    'flow-run': FlowRun,
                     'app-connection': AppConnectionWithoutSensitiveData,
                     piece: PieceMetadata,
-                    'git-repo': GitRepoWithoutSenestiveData,
+                    'git-repo': GitRepoWithoutSensitiveData,
                 },
             },
             info: {
@@ -177,6 +191,7 @@ export const setupApp = async (): Promise<FastifyInstance> => {
         cors: {
             origin: '*',
         },
+        transports: ['websocket'],
     })
 
     app.io.use((socket: Socket, next: (err?: Error) => void) => {
@@ -209,7 +224,7 @@ export const setupApp = async (): Promise<FastifyInstance> => {
     })
 
     app.addHook('preHandler', securityHandlerChain)
-    app.addHook('preHandler', rbacAuthMiddleware)
+    app.addHook('preHandler', rbacMiddleware)
     app.setErrorHandler(errorHandler)
     await app.register(fileModule)
     await app.register(flagModule)
@@ -227,6 +242,8 @@ export const setupApp = async (): Promise<FastifyInstance> => {
     await app.register(userModule)
     await app.register(authenticationModule)
     await app.register(copilotModule)
+    await app.register(platformModule)
+    await app.register(formModule)
 
     await setupBullMQBoard(app)
 
@@ -266,7 +283,6 @@ export const setupApp = async (): Promise<FastifyInstance> => {
     logger.info(`Activepieces ${edition} Edition`)
     switch (edition) {
         case ApEdition.CLOUD:
-            await app.register(billingModule)
             await app.register(appCredentialModule)
             await app.register(connectionKeyModule)
             await app.register(platformProjectModule)
@@ -274,7 +290,6 @@ export const setupApp = async (): Promise<FastifyInstance> => {
             await app.register(appSumoModule)
             await app.register(referralModule)
             await app.register(adminPieceModule)
-            await app.register(platformModule)
             await app.register(customDomainModule)
             await app.register(signingKeyModule)
             await app.register(managedAuthnModule)
@@ -288,6 +303,11 @@ export const setupApp = async (): Promise<FastifyInstance> => {
             await app.register(platformFlowTemplateModule)
             await app.register(gitRepoModule)
             await app.register(auditEventModule)
+            await app.register(activityModule)
+            await redisSystemJob.init()
+            await app.register(projectBillingModule)
+            await app.register(usageTrackerModule)
+            await app.register(adminPlatformPieceModule)
             setPlatformOAuthService({
                 service: platformOAuth2Service,
             })
@@ -306,7 +326,6 @@ export const setupApp = async (): Promise<FastifyInstance> => {
             await app.register(customDomainModule)
             await app.register(platformProjectModule)
             await app.register(projectMemberModule)
-            await app.register(platformModule)
             await app.register(signingKeyModule)
             await app.register(managedAuthnModule)
             await app.register(oauthAppModule)
@@ -318,8 +337,10 @@ export const setupApp = async (): Promise<FastifyInstance> => {
             await app.register(enterpriseUserModule)
             await app.register(platformFlowTemplateModule)
             await app.register(gitRepoModule)
-
             await app.register(auditEventModule)
+            await app.register(activityModule)
+            await redisSystemJob.init()
+            await app.register(usageTrackerModule)
             setPlatformOAuthService({
                 service: platformOAuth2Service,
             })
@@ -341,6 +362,7 @@ export const setupApp = async (): Promise<FastifyInstance> => {
 
     app.addHook('onClose', async () => {
         await flowQueueConsumer.close()
+        await redisSystemJob.close()
         await flowResponseWatcher.shutdown()
     })
 
@@ -354,16 +376,16 @@ const validateEnvPropsOnStartup = async (): Promise<void> => {
     )
     const executionMode = system.get<ExecutionMode>(SystemProp.EXECUTION_MODE)
     const signedUpEnabled =
-    system.getBoolean(SystemProp.SIGN_UP_ENABLED) ?? false
+        system.getBoolean(SystemProp.SIGN_UP_ENABLED) ?? false
     const queueMode = system.getOrThrow<QueueMode>(SystemProp.QUEUE_MODE)
     const environment = system.get(SystemProp.ENVIRONMENT)
     await loadEncryptionKey(queueMode)
 
     if (
         executionMode === ExecutionMode.UNSANDBOXED &&
-    codeSandboxType !== CodeSandboxType.V8_ISOLATE &&
-    signedUpEnabled &&
-    environment === ApEnvironment.PRODUCTION
+        codeSandboxType !== CodeSandboxType.V8_ISOLATE &&
+        signedUpEnabled &&
+        environment === ApEnvironment.PRODUCTION
     ) {
         throw new ActivepiecesError(
             {

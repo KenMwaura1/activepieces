@@ -26,6 +26,7 @@ import {
   environment,
   PlatformService,
   FlowBuilderService,
+  TelemetryService,
 } from '@activepieces/ui/common';
 import { compareVersions } from 'compare-versions';
 import { ApEdition, ApFlagId, LocalesEnum } from '@activepieces/shared';
@@ -36,7 +37,7 @@ import {
   LocalesService,
 } from '@activepieces/ui/common';
 import { MatDialog } from '@angular/material/dialog';
-import { Platform } from '@activepieces/ee-shared';
+import { Platform } from '@activepieces/shared';
 import { UserWithoutPassword } from '@activepieces/shared';
 
 interface UpgradeNotificationMetaDataInLocalStorage {
@@ -79,7 +80,8 @@ export class AppComponent implements OnInit {
     private embeddedService: EmbeddingService,
     private localesService: LocalesService,
     private platformService: PlatformService,
-    private builderService: FlowBuilderService
+    private builderService: FlowBuilderService,
+    private telemetryService: TelemetryService
   ) {
     this.toggleLoading$ = this.builderService.loading$.pipe(
       tap((res) => {
@@ -132,6 +134,7 @@ export class AppComponent implements OnInit {
           this.store.dispatch(CommonActions.clearState());
           return;
         }
+        this.telemetryService.init(user);
       })
     );
   }
@@ -252,7 +255,7 @@ export class AppComponent implements OnInit {
           tap((embedded) => {
             if (
               routingEvent instanceof NavigationStart &&
-              routingEvent.url.startsWith('/embed') &&
+              routingEvent.url === '/embed' &&
               embedded
             ) {
               console.error('visiting /embed after init');

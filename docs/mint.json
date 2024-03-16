@@ -38,6 +38,22 @@
   ],
   "anchors": [
     {
+      "name": "Deploy",
+      "url": "install",
+      "icon": "rocket"
+    },
+    {
+      "name": "Develop Pieces",
+      "url": "developers",
+      "icon": "code"
+    },
+    
+    {
+      "name": "API",
+      "url": "endpoints",
+      "icon": "link"
+    },
+    {
       "name": "Discord",
       "icon": "discord",
       "url": "https://discord.gg/2jUXBKDdP8"
@@ -46,23 +62,11 @@
       "name": "Pieces",
       "icon": "plug",
       "url": "https://www.activepieces.com/pieces"
-    }
-  ],
-  "primaryTab": {
-    "name": "Learn"
-  },
-  "tabs": [
-    {
-      "name": "Develop Pieces",
-      "url": "developers"
     },
     {
-      "name": "Deploy",
-      "url": "install"
-    },
-    {
-      "name": "API",
-      "url": "endpoints"
+      "name": "Handbook",
+      "icon": "book",
+      "url": "handbook"
     }
   ],
   "navigation": [
@@ -122,6 +126,15 @@
             "endpoints/flows/get",
             "endpoints/flows/list",
             "endpoints/flows/delete"
+          ]
+        },
+        {
+          "group": "Flow Runs",
+          "icon": "play",
+          "pages": [
+            "endpoints/flow-runs/schema",
+            "endpoints/flow-runs/get",
+            "endpoints/flow-runs/list"
           ]
         },
         {
@@ -245,24 +258,30 @@
       ]
     },
     {
+      "group":"Customer Portal",
+      "pages":[
+        "customer-portal/overview",
+        "customer-portal/activity",
+        "customer-portal/connections",
+        "customer-portal/inviting-customer"      
+      ]
+    },
+    {
       "group": "Embedding",
       "pages": [
         {
-          "group": "Embed Builder",
+          "group": "Configuration",
           "icon": "code",
           "pages": [
-            "embedding/embed-builder/generate-jwt",
-            "embedding/embed-builder/embed-iframe"
+            "embedding/configuration/generate-jwt",
+            "embedding/configuration/initialize-embed"
           ]
         },
         {
-          "group": "Connection Cards",
+          "group": "Connections",
           "icon": "cards-blank",
           "pages": [
-            "embedding/connection-cards/overview",
-            "embedding/connection-cards/user-authentication",
-            "embedding/connection-cards/frontend-sdk",
-            "embedding/connection-cards/user-flows"
+            "embedding/connections/create-connection"
           ]
         }
       ]
@@ -310,16 +329,66 @@
         "about/telemetry",
         "about/license"
       ]
+    },
+    {
+      "group": "Handbook",
+      "pages": [
+        "handbook/overview",
+        "handbook/values",
+        {
+          "group": "Engineering",
+          "icon": "code",
+          "pages": [
+            "handbook/engineering/team",
+            "handbook/engineering/how-we-work",
+            "handbook/engineering/stack",
+            "handbook/engineering/hiring"
+          ]
+        },
+        {
+          "group": "People",
+          "icon": "users",
+          "pages": [
+            "handbook/people/time"
+          ]
+        }
+      ]
     }
   ],
   "analytics": {
     "posthog": {
-      "apiKey": "phc_TXdpocbYTeZVm5VJmMzHTMrCofBQu3e0kN7HGMNGTVW"
+      "apiKey": "phc_7F92HoXJPeGnTKmYv0eOw62FurPMRW9Aqr0TPrDzvHh"
     }
   },
   "footerSocials": {
     "website": "https://www.activepieces.com",
     "github": "https://github.com/activepieces/activepieces",
     "discord": "https://discord.gg/2jUXBKDdP8"
-  }
+  },
+  "redirects": [
+    {
+      "source": "/embedding/connection-cards/overview",
+      "destination": "/embedding/connections/create-connection"
+    },
+    {
+      "source": "/embedding/connection-cards/user-authentication",
+      "destination": "/embedding/configuration/generate-jwt"
+    },
+    {
+      "source": "/embedding/connection-cards/frontend-sdk",
+      "destination": "/embedding/configuration/initialize-embed"
+    },
+    {
+      "source": "/embedding/connection-cards/user-flows",
+      "destination": "/embedding/configuration/generate-jwt"
+    },
+    {
+      "source": "/embedding/embed-builder/generate-jwt",
+      "destination": "/embedding/configuration/generate-jwt"
+    },
+    {
+      "source":"/embedding/embed-builder/embed-iframe",
+      "destination":"/embedding/configuration/initialize-embed"
+    }
+  ]
 }

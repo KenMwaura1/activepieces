@@ -84,7 +84,7 @@ export const flowVersionService = {
     }: ApplyOperationParams): Promise<FlowVersion> {
         let operations: FlowOperationRequest[] = []
         let mutatedFlowVersion: FlowVersion = flowVersion
-
+        
         switch (userOperation.type) {
             case FlowOperationType.USE_AS_DRAFT: {
                 const previousVersion = await flowVersionService.getFlowVersionOrThrow({
@@ -201,7 +201,12 @@ export const flowVersionService = {
             },
         })
         const paginationResult = await paginator.paginate(
-            flowVersionRepo().createQueryBuilder('flow_version').where({
+            flowVersionRepo().createQueryBuilder('flow_version').leftJoinAndMapOne(
+                'flow_version.updatedByUser',
+                'user',
+                'user',
+                'flow_version.updatedBy = "user"."id"',
+            ).where({
                 flowId,
             }),
         )
@@ -342,6 +347,12 @@ function handleImportFlowOperation(
         type: FlowOperationType.UPDATE_TRIGGER,
         request: operation.trigger,
     })
+    operations.push({
+        type: FlowOperationType.CHANGE_NAME,
+        request: {
+            displayName: operation.displayName,
+        },
+    })
     operations.push(...flowHelper.getImportOperations(operation.trigger))
     return operations
 }
@@ -447,9 +458,6 @@ async function prepareRequest(
                         settings: clonedRequest.request.settings,
                         projectId,
                     })
-                    break
-                default:
-                    clonedRequest.request.valid = true
                     break
             }
             break

@@ -49,6 +49,9 @@ import {
   fadeInUp400ms,
   InsertMentionOperation,
   FlagService,
+  appConnectionsSelectors,
+  EMPTY_SPACE_BETWEEN_INPUTS_IN_PIECE_PROPERTIES_FORM,
+  BOTTOM_MARGIN_FOR_DESCRIPTION_IN_PIECE_PROPERTIES_FORM,
 } from '@activepieces/ui/common';
 import {
   BuilderSelectors,
@@ -85,11 +88,13 @@ type ConfigKey = string;
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PiecePropertiesFormComponent implements ControlValueAccessor {
+  readonly BOTTOM_MARGIN_FOR_DESCRIPTION_IN_PIECE_PROPERTIES_FORM =
+    BOTTOM_MARGIN_FOR_DESCRIPTION_IN_PIECE_PROPERTIES_FORM;
+  readonly MIN_SPACING_BETWEEN_INPUTS =
+    EMPTY_SPACE_BETWEEN_INPUTS_IN_PIECE_PROPERTIES_FORM;
   updateValueOnChange$: Observable<void> = new Observable<void>();
   PropertyType = PropertyType;
-  searchControl: FormControl<string> = new FormControl('', {
-    nonNullable: true,
-  });
+  searchControls: Record<string, FormControl> = {};
   dropdownOptionsObservables$: {
     [key: ConfigKey]: Observable<DropdownState<unknown>>;
   } = {};
@@ -120,13 +125,13 @@ export class PiecePropertiesFormComponent implements ControlValueAccessor {
   requiredProperties: PiecePropertyMap = {};
   optionalProperties: PiecePropertyMap = {};
   optionalConfigsMenuOpened = false;
-  @Input() actionOrTriggerName: string;
-  @Input() packageType: PackageType;
-  @Input() pieceType: PieceType;
-  @Input() pieceName: string;
-  @Input() pieceVersion: string;
-  @Input() pieceDisplayName: string;
-  @Input() isTriggerPieceForm = false;
+  @Input({ required: true }) actionOrTriggerName: string;
+  @Input({ required: true }) packageType: PackageType;
+  @Input({ required: true }) pieceType: PieceType;
+  @Input({ required: true }) pieceName: string;
+  @Input({ required: true }) pieceVersion: string;
+  @Input({ required: true }) pieceDisplayName: string;
+  @Input({ required: true }) isTriggerPieceForm = false;
   @ViewChildren('textControl', { read: ElementRef })
   theInputs: QueryList<ElementRef>;
   @ViewChild('addConnectionBtn')
@@ -135,6 +140,7 @@ export class PiecePropertiesFormComponent implements ControlValueAccessor {
   setDefaultValue$: Observable<null>;
   OnChange: (value: unknown) => void;
   OnTouched: () => void;
+  staticDropdownSearchControl = new FormControl('', { nonNullable: true });
   jsonMonacoEditor: any;
   constructor(
     private fb: UntypedFormBuilder,
@@ -145,7 +151,7 @@ export class PiecePropertiesFormComponent implements ControlValueAccessor {
     private cd: ChangeDetectorRef
   ) {
     this.allAuthConfigs$ = this.store.select(
-      BuilderSelectors.selectAppConnectionsDropdownOptions
+      appConnectionsSelectors.selectAppConnectionsDropdownOptions
     );
   }
   writeValue(obj: PiecePropertiesFormValue): void {
@@ -153,6 +159,10 @@ export class PiecePropertiesFormComponent implements ControlValueAccessor {
     this.customizedInputs = obj.customizedInputs;
     this.descriptionExpandedMap = {};
     this.descriptionOverflownMap = {};
+    this.searchControls = {};
+    Object.keys(this.properties).forEach((pk) => {
+      this.searchControls[pk] = new FormControl('');
+    });
     this.createForm(obj.propertiesValues);
     if (obj.setDefaultValues) {
       this.setDefaultValue$ = of(null).pipe(
@@ -359,19 +369,32 @@ export class PiecePropertiesFormComponent implements ControlValueAccessor {
           }
         }),
         startWith(this.form.controls[rk].value),
-        tap(() => {
-          this.refreshableConfigsLoadingFlags$[obj.propertyKey].next(true);
-        }),
         debounceTime(150)
       );
     });
     if (obj.property.refreshers.length === 0) {
       refreshers$['oneTimeRefresh'] = of(true);
     }
+    //Add search control as a refresher as well
+    if (
+      obj.property.type === PropertyType.DROPDOWN &&
+      obj.property.refreshOnSearch
+    ) {
+      refreshers$[obj.propertyKey] = this.searchControls[
+        obj.propertyKey
+      ].valueChanges.pipe(
+        debounceTime(150),
+        distinctUntilChanged(),
+        startWith(this.searchControls[obj.propertyKey].value)
+      );
+    }
     return this.store.select(BuilderSelectors.selectCurrentFlow).pipe(
       take(1),
       switchMap((flowVersion) =>
         combineLatest(refreshers$).pipe(
+          tap(() => {
+            this.refreshableConfigsLoadingFlags$[obj.propertyKey].next(true);
+          }),
           switchMap((res) =>
             this.actionMetaDataService
               .getPieceActionConfigOptions<T>({
@@ -384,6 +407,7 @@ export class PiecePropertiesFormComponent implements ControlValueAccessor {
                 flowId: flowVersion.id,
                 flowVersionId: flowVersion.version.id,
                 input: res,
+                searchValue: this.searchControls[obj.propertyKey].value,
               })
               .pipe(
                 catchError((err) => {
@@ -399,10 +423,6 @@ export class PiecePropertiesFormComponent implements ControlValueAccessor {
         )
       )
     );
-  }
-
-  getControl(configKey: string) {
-    return this.form.get(configKey);
   }
 
   connectionValueChanged(event: {
@@ -543,12 +563,12 @@ export class PiecePropertiesFormComponent implements ControlValueAccessor {
     return forkJoin({
       flow: this.store.select(BuilderSelectors.selectCurrentFlow).pipe(take(1)),
       webhookPrefix: this.flagService.getWebhookUrlPrefix(),
-      interfacePrefix: this.flagService.getInterfaceUrlPrefix(),
+      formsPrefix: this.flagService.getFormUrlPrefix(),
     }).pipe(
       map((res) => {
         return markdown
           .replace('{{webhookUrl}}', `${res.webhookPrefix}/${res.flow.id}`)
-          .replace('{{interfaceUrl}}', `${res.interfacePrefix}/${res.flow.id}`);
+          .replace('{{formUrl}}', `${res.formsPrefix}/${res.flow.id}`);
       })
     );
   }

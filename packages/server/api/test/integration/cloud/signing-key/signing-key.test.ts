@@ -8,7 +8,7 @@ import {
 } from '../../../helpers/mocks'
 import { StatusCodes } from 'http-status-codes'
 import { FastifyInstance } from 'fastify'
-import { PlatformRole, PrincipalType, apId } from '@activepieces/shared'
+import { PlatformRole, PrincipalType } from '@activepieces/shared'
 import { faker } from '@faker-js/faker'
 
 let app: FastifyInstance | null = null
@@ -60,37 +60,8 @@ describe('Signing Key API', () => {
             expect(responseBody.publicKey).toBeDefined()
             expect(responseBody.displayName).toBe(mockSigningKeyName)
             expect(responseBody.privateKey).toBeDefined()
-            expect(responseBody.generatedBy).toBe(mockUser.id)
             expect(responseBody.algorithm).toBe('RSA')
         }, 10000)
-
-        it('Fails if platform is not found', async () => {
-            // arrange
-            const nonExistentPlatformId = apId()
-
-            const testToken = await generateMockToken({
-                type: PrincipalType.USER,
-                platform: {
-                    id: nonExistentPlatformId,
-                    role: PlatformRole.OWNER,
-                },
-            })
-
-            const mockSigningKeyName = faker.lorem.word()
-            const response = await app?.inject({
-                method: 'POST',
-                url: '/v1/signing-keys',
-                body: {
-                    displayName: mockSigningKeyName,
-                },
-                headers: {
-                    authorization: `Bearer ${testToken}`,
-                },
-            })
-
-            // assert
-            expect(response?.statusCode).toBe(StatusCodes.INTERNAL_SERVER_ERROR)
-        })
 
         it('Fails if user is not platform owner', async () => {
             // arrange
@@ -102,7 +73,6 @@ describe('Signing Key API', () => {
 
             const mockSigningKey = createMockSigningKey({
                 platformId: mockPlatform.id,
-                generatedBy: mockUser.id,
             })
 
             await databaseConnection
@@ -143,7 +113,6 @@ describe('Signing Key API', () => {
 
             const mockSigningKey = createMockSigningKey({
                 platformId: mockPlatform.id,
-                generatedBy: mockUser.id,
             })
 
             await databaseConnection
@@ -172,7 +141,6 @@ describe('Signing Key API', () => {
             expect(responseBody.id).toBe(mockSigningKey.id)
             expect(responseBody.platformId).toBe(mockSigningKey.platformId)
             expect(responseBody.publicKey).toBe(mockSigningKey.publicKey)
-            expect(responseBody.generatedBy).toBe(mockSigningKey.generatedBy)
             expect(responseBody.algorithm).toBe(mockSigningKey.algorithm)
         })
     })
@@ -194,7 +162,6 @@ describe('Signing Key API', () => {
 
             const mockSigningKey = createMockSigningKey({
                 platformId: mockPlatform.id,
-                generatedBy: mockUser.id,
             })
 
             await databaseConnection
@@ -238,12 +205,10 @@ describe('Signing Key API', () => {
 
             const mockSigningKeyOne = createMockSigningKey({
                 platformId: mockPlatformOne.id,
-                generatedBy: mockUserOne.id,
             })
 
             const mockSigningKeyTwo = createMockSigningKey({
                 platformId: mockPlatformTwo.id,
-                generatedBy: mockUserTwo.id,
             })
 
             await databaseConnection

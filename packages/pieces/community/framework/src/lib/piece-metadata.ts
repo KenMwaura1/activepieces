@@ -12,6 +12,7 @@ export const PieceBase = Type.Object({
   logoUrl: Type.String(),
   description: Type.String(),
   projectId: Type.Optional(Type.String()),
+  authors: Type.Array(Type.String()),
   platformId: Type.Optional(Type.String()),
   directoryPath: Type.Optional(Type.String()),
   auth: Type.Optional(PieceAuthProperty),
@@ -29,6 +30,7 @@ export type PieceBase = {
   description: string;
   projectId?: ProjectId;
   platformId?: string;
+  authors: string[],
   directoryPath?: string;
   auth?: PieceAuthProperty;
   version: string;
@@ -91,9 +93,19 @@ export const PieceMetadataSummary = Type.Composite([
   Type.Object({
     actions: Type.Number(),
     triggers: Type.Number(),
+    suggestedActions: Type.Optional(Type.Array(Type.Object({
+      name: Type.String(),
+      displayName: Type.String(),
+    }))),
+    suggestedTriggers: Type.Optional(Type.Array(Type.Object({
+      name: Type.String(),
+      displayName: Type.String(),
+    }))),
   })
 ])
 export type PieceMetadataSummary = Omit<PieceMetadata, "actions" | "triggers"> & {
   actions: number;
   triggers: number;
+  suggestedActions?: { name: string, displayName: string }[];
+  suggestedTriggers?: { name: string, displayName: string }[];
 }

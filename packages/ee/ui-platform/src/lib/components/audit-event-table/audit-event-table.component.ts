@@ -4,7 +4,7 @@ import {
   OnInit,
   ViewChild,
 } from '@angular/core';
-import { BehaviorSubject, Observable, Subject, map } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, map, of } from 'rxjs';
 import { startWith } from 'rxjs';
 import {
   ApPaginatorComponent,
@@ -16,8 +16,10 @@ import { AuditEventService } from '../../service/audit-event-service';
 import {
   ApplicationEvent,
   ApplicationEventName,
-  Platform,
+  summarizeApplicationEvent,
 } from '@activepieces/ee-shared';
+import { ActivatedRoute } from '@angular/router';
+import { Platform } from '@activepieces/shared';
 
 @Component({
   selector: 'app-audit-event-table',
@@ -39,19 +41,21 @@ export class AuditEventTableComponent
     'created',
   ];
   platform$?: BehaviorSubject<Platform>;
-  isEnabled$!: Observable<boolean>;
+  isEnabled$: Observable<boolean> = of(false);
   dataSource!: AuditEventDataSource;
   refresh$: Subject<boolean> = new Subject();
   dialogClosed$?: Observable<unknown>;
   featureDisabledTooltip = featureDisabledTooltip;
-
-  constructor(private auditEventService: AuditEventService) {
+  upgradeNote = $localize`Monitor and track events happening in your platform to users, flows, folders and connections.`;
+  constructor(
+    private auditEventService: AuditEventService,
+    private activatedRoute: ActivatedRoute
+  ) {
     super();
   }
   ngOnInit(): void {
     if (this.platform) {
       this.platform$ = new BehaviorSubject(this.platform);
-      console.log(this.platform);
       this.isEnabled$ = this.platform$.pipe(
         map((platform) => platform?.auditLogEnabled && !this.isDemo)
       );
@@ -60,7 +64,8 @@ export class AuditEventTableComponent
       this.refresh$.asObservable().pipe(startWith(false)),
       this.auditEventService,
       this.paginator,
-      this.isEnabled$
+      this.isEnabled$,
+      this.activatedRoute.queryParams
     );
   }
 
@@ -76,6 +81,7 @@ export class AuditEventTableComponent
       case ApplicationEventName.CREATED_FLOW:
       case ApplicationEventName.DELETED_FLOW:
       case ApplicationEventName.CREATED_FOLDER:
+      case ApplicationEventName.UPDATED_FLOW:
         return {
           icon: 'assets/img/custom/dashboard/flows.svg',
           tooltip: 'Flow',
@@ -92,7 +98,9 @@ export class AuditEventTableComponent
           icon: 'assets/img/custom/dashboard/connections.svg',
           tooltip: 'Connection',
         };
-      case ApplicationEventName.SIGNED_UP:
+      case ApplicationEventName.SIGNED_UP_USING_EMAIL:
+      case ApplicationEventName.SIGNED_UP_USING_MANAGED_AUTH:
+      case ApplicationEventName.SIGNED_UP_USING_SSO:
       case ApplicationEventName.SIGNED_IN:
       case ApplicationEventName.RESET_PASSWORD:
       case ApplicationEventName.VERIFIED_EMAIL:
@@ -100,33 +108,15 @@ export class AuditEventTableComponent
           icon: 'assets/img/custom/dashboard/users.svg',
           tooltip: 'User',
         };
+      case ApplicationEventName.CREATED_SIGNING_KEY:
+        return {
+          icon: 'assets/img/custom/signing-key.svg',
+          tooltip: 'Signing Key',
+        };
     }
   }
 
   convertToDetails(event: ApplicationEvent) {
-    switch (event.action) {
-      case ApplicationEventName.CREATED_FLOW:
-        return `${event.data.flowName} is created`;
-      case ApplicationEventName.DELETED_FLOW:
-        return `${event.data.flowName} is deleted`;
-      case ApplicationEventName.CREATED_FOLDER:
-        return `${event.data.folderName} is created`;
-      case ApplicationEventName.UPDATED_FOLDER:
-        return `${event.data.folderName} is updated`;
-      case ApplicationEventName.DELETED_FOLDER:
-        return `${event.data.folderName} is deleted`;
-      case ApplicationEventName.UPSERTED_CONNECTION:
-        return `${event.data.connectionName} is updated`;
-      case ApplicationEventName.DELETED_CONNECTION:
-        return `${event.data.connectionName} is deleted`;
-      case ApplicationEventName.SIGNED_UP:
-        return `User ${event.userEmail} signed up`;
-      case ApplicationEventName.SIGNED_IN:
-        return `User ${event.userEmail} signed in`;
-      case ApplicationEventName.RESET_PASSWORD:
-        return `User ${event.userEmail} reset password`;
-      case ApplicationEventName.VERIFIED_EMAIL:
-        return `User ${event.userEmail} verified email`;
-    }
+    return summarizeApplicationEvent(event);
   }
 }

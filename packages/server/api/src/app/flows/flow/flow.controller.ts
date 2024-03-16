@@ -1,13 +1,17 @@
 import {
+    ActivepiecesError,
     ApId,
     CreateFlowRequest,
+    ErrorCode,
     FlowOperationRequest,
     FlowTemplateWithoutProjectInformation,
     GetFlowQueryParamsRequest,
     ListFlowsRequest,
+    Permission,
     PopulatedFlow,
     Principal,
     PrincipalType,
+    SERVICE_KEY_SECURITY_OPENAPI,
     SeekPage,
 } from '@activepieces/shared'
 import { StatusCodes } from 'http-status-codes'
@@ -44,23 +48,20 @@ export const flowController: FastifyPluginAsyncTypebox = async (app) => {
         return reply.status(StatusCodes.CREATED).send(newFlow)
     })
 
-    app.post('/:id', UpdateFlowRequestOptions, async (request, reply) => {
+    app.post('/:id', UpdateFlowRequestOptions, async (request) => {
         const flow = await flowService.getOnePopulatedOrThrow({
             id: request.params.id,
             projectId: request.principal.projectId,
         })
-        // BEGIN EE
-        const currentTime = dayjs()
-        const userId = await extractUserIdFromPrincipal(request.principal)
 
-        if (
-            !isNil(flow.version.updatedBy) &&
-      flow.version.updatedBy !== userId &&
-      currentTime.diff(dayjs(flow.version.updated), 'minute') <= 1
-        ) {
-            return reply.status(StatusCodes.CONFLICT).send()
-        }
-        // END EE
+        const userId = await extractUserIdFromPrincipal(request.principal)
+        await assertThatFlowIsNotBeingUsed(flow, userId)
+        eventsHooks.get().send(request, {
+            action: ApplicationEventName.UPDATED_FLOW,
+            request: request.body,
+            flow,
+            userId: request.principal.id,
+        })
 
         const updatedFlow = await flowService.update({
             id: request.params.id,
@@ -122,6 +123,26 @@ export const flowController: FastifyPluginAsyncTypebox = async (app) => {
     })
 }
 
+async function assertThatFlowIsNotBeingUsed(
+    flow: PopulatedFlow,
+    userId: string,
+): Promise<void> {
+    const currentTime = dayjs()
+    if (
+        !isNil(flow.version.updatedBy) &&
+        flow.version.updatedBy !== userId &&
+        currentTime.diff(dayjs(flow.version.updated), 'minute') <= 1
+    ) {
+        throw new ActivepiecesError({
+            code: ErrorCode.FLOW_IN_USE,
+            params: {
+                flowVersionId: flow.version.id,
+                message: 'Flow is being used by another user in the last minute. Please try again later.',
+            },
+        })
+    }
+}
+
 async function extractUserIdFromPrincipal(
     principal: Principal,
 ): Promise<string> {
@@ -136,10 +157,12 @@ async function extractUserIdFromPrincipal(
 const CreateFlowRequestOptions = {
     config: {
         allowedPrincipals: [PrincipalType.USER, PrincipalType.SERVICE],
+        permission: Permission.WRITE_FLOW,
     },
     schema: {
         tags: ['flows'],
         description: 'Create a flow',
+        security: [SERVICE_KEY_SECURITY_OPENAPI],
         body: CreateFlowRequest,
         response: {
             [StatusCodes.CREATED]: PopulatedFlow,
@@ -148,9 +171,13 @@ const CreateFlowRequestOptions = {
 }
 
 const UpdateFlowRequestOptions = {
+    config: {
+        permission: Permission.WRITE_FLOW,
+    },
     schema: {
         tags: ['flows'],
         description: 'Apply an operation to a flow',
+        security: [SERVICE_KEY_SECURITY_OPENAPI],
         body: FlowOperationRequest,
         params: Type.Object({
             id: ApId,
@@ -161,10 +188,12 @@ const UpdateFlowRequestOptions = {
 const ListFlowsRequestOptions = {
     config: {
         allowedPrincipals: [PrincipalType.USER, PrincipalType.SERVICE],
+        permission: Permission.READ_FLOW,
     },
     schema: {
         tags: ['flows'],
         description: 'List flows',
+        security: [SERVICE_KEY_SECURITY_OPENAPI],
         querystring: ListFlowsRequest,
         response: {
             [StatusCodes.OK]: SeekPage(PopulatedFlow),
@@ -192,9 +221,11 @@ const GetFlowTemplateRequestOptions = {
 const GetFlowRequestOptions = {
     config: {
         allowedPrincipals: [PrincipalType.USER, PrincipalType.SERVICE],
+        permission: Permission.READ_FLOW,
     },
     schema: {
         tags: ['flows'],
+        security: [SERVICE_KEY_SECURITY_OPENAPI],
         description: 'Get a flow by id',
         params: Type.Object({
             id: ApId,
@@ -209,9 +240,11 @@ const GetFlowRequestOptions = {
 const DeleteFlowRequestOptions = {
     config: {
         allowedPrincipals: [PrincipalType.USER, PrincipalType.SERVICE],
+        permission: Permission.WRITE_FLOW,
     },
     schema: {
         tags: ['flows'],
+        security: [SERVICE_KEY_SECURITY_OPENAPI],
         description: 'Delete a flow',
         params: Type.Object({
             id: ApId,

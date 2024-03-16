@@ -1,6 +1,7 @@
 import { databaseConnection } from '../../database/database-connection'
 import { AuditEventEntity } from './audit-event-entity'
 import {
+    ApEdition,
     Cursor,
     PrincipalType,
     SeekPage,
@@ -8,7 +9,6 @@ import {
     assertNotNullOrUndefined,
     isNil,
 } from '@activepieces/shared'
-import { PlatformId } from '@activepieces/ee-shared'
 import { buildPaginator } from '../../helper/pagination/build-paginator'
 import { paginationHelper } from '../../helper/pagination/pagination-utils'
 import {
@@ -24,13 +24,15 @@ import { projectService } from '../../project/project-service'
 import { FastifyRequest } from 'fastify'
 import { extractClientRealIp } from '../../helper/network-utils'
 import { rejectedPromiseHandler } from 'server-shared'
+import { platformService } from '../../platform/platform.service'
+import { getEdition } from '../../helper/secret-helper'
 
 const auditLogRepo = databaseConnection.getRepository(AuditEventEntity)
 
 type AuditLogService = {
     send: ApplicationEventHooks['send']
     list: (params: {
-        platformId: PlatformId
+        platformId: string
         cursorRequest: Cursor | null
         limit: number
     }) => Promise<SeekPage<ApplicationEvent>>
@@ -45,7 +47,7 @@ export const auditLogService: AuditLogService = {
         cursorRequest,
         limit,
     }: {
-        platformId: PlatformId
+        platformId: string
         cursorRequest: Cursor | null
         limit: number
     }): Promise<SeekPage<ApplicationEvent>> {
@@ -54,7 +56,7 @@ export const auditLogService: AuditLogService = {
             entity: AuditEventEntity,
             query: {
                 limit,
-                order: 'ASC',
+                order: 'DESC',
                 afterCursor: decodedCursor.nextCursor,
                 beforeCursor: decodedCursor.previousCursor,
             },
@@ -73,11 +75,12 @@ const saveEvent = async (
     request: FastifyRequest,
     rawEvent: CreateAuditEventParam,
 ) => {
-    if (
-        ![PrincipalType.USER, PrincipalType.UNKNOWN].includes(
-            request.principal.type,
-        )
-    ) {
+    if ([PrincipalType.UNKNOWN, PrincipalType.WORKER].includes(request.principal.type)) {
+        return
+    }
+    const platform = await platformService.getOneOrThrow(request.principal.platform.id)
+    const edition = getEdition()
+    if (!platform.auditLogEnabled && edition !== ApEdition.CLOUD) {
         return
     }
     const userInformation = await userService.getMetaInfo({
@@ -102,14 +105,40 @@ const saveEvent = async (
     }
     let eventToSave: ApplicationEvent | undefined
     switch (rawEvent.action) {
+        case ApplicationEventName.SIGNED_UP_USING_EMAIL:
+        case ApplicationEventName.SIGNED_UP_USING_SSO:
+        case ApplicationEventName.SIGNED_UP_USING_MANAGED_AUTH: {
+            eventToSave = {
+                ...baseProps,
+                action: rawEvent.action,
+                data: {
+                    createdUser: {
+                        id: rawEvent.createdUser.id,
+                        email: rawEvent.createdUser.email,
+                    },
+                },
+            }
+            break
+        }
         case ApplicationEventName.SIGNED_IN:
         case ApplicationEventName.RESET_PASSWORD:
-        case ApplicationEventName.VERIFIED_EMAIL:
-        case ApplicationEventName.SIGNED_UP: {
+        case ApplicationEventName.VERIFIED_EMAIL: {
             eventToSave = {
                 ...baseProps,
                 action: rawEvent.action,
                 data: {},
+            }
+            break
+        }
+        case ApplicationEventName.UPDATED_FLOW: {
+            eventToSave = {
+                ...baseProps,
+                action: rawEvent.action,
+                data: {
+                    flowId: rawEvent.flow.id,
+                    flowName: rawEvent.flow.version.displayName,
+                    request: rawEvent.request,
+                },
             }
             break
         }
@@ -146,6 +175,17 @@ const saveEvent = async (
                 data: {
                     folderId: rawEvent.folder.id,
                     folderName: rawEvent.folder.displayName,
+                },
+            }
+            break
+        }
+        case ApplicationEventName.CREATED_SIGNING_KEY: {
+            eventToSave = {
+                ...baseProps,
+                action: rawEvent.action,
+                data: {
+                    signingKeyId: rawEvent.signingKey.id,
+                    signingKeyName: rawEvent.signingKey.displayName,
                 },
             }
             break

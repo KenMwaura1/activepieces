@@ -4,41 +4,40 @@ import {
     TelemetryEventName,
     UserId,
     apId,
+    isNil,
 } from '@activepieces/shared'
 import { databaseConnection } from '../../database/database-connection'
 import { ReferralEntity } from './referral.entity'
-import { Referral } from '@activepieces/ee-shared'
+import { DEFAULT_FREE_PLAN_LIMIT, Referral } from '@activepieces/ee-shared'
 import { paginationHelper } from '../../helper/pagination/pagination-utils'
 import { buildPaginator } from '../../helper/pagination/build-paginator'
 import { telemetry } from '../../helper/telemetry.utils'
 import { projectService } from '../../project/project-service'
 import { userService } from '../../user/user-service'
 import { logger } from 'server-shared'
-import { plansService } from '../billing/project-plan/project-plan.service'
+import { projectLimitsService } from '../project-plan/project-plan.service'
+import { projectBillingService } from '../billing/project-billing/project-billing.service'
 
 const referralRepo = databaseConnection.getRepository(ReferralEntity)
 
 export const referralService = {
-    async upsert({
-        referredUserId,
-        referringUserId,
-    }: {
-        referringUserId: string
-        referredUserId: string
-    }) {
-        const referingUser = await userService.getMetaInfo({ id: referringUserId })
-        if (!referingUser) {
-            logger.warn(`Referring user ${referringUserId} not found, ignoring.`)
+    async add({ referringUserId, referredUserId, referredUserEmail }: AddParams): Promise<void> {
+        const referringUser = await userService.getMetaInfo({ id: referringUserId })
+
+        if (isNil(referringUser)) {
+            logger.warn({ name: 'ReferralService#add', referringUserId, referredUserId }, 'Referring user not found')
             return
         }
-        await referralRepo.upsert(
-            {
-                referredUserId,
-                referringUserId,
-                id: apId(),
-            },
-            ['referredUserId', 'referringUserId'],
-        )
+
+        const newReferral: NewReferral = {
+            id: apId(),
+            referringUserId,
+            referringUserEmail: referringUser.email,
+            referredUserId,
+            referredUserEmail,
+        }
+
+        await referralRepo.save(newReferral)
 
         telemetry
             .trackUser(referringUserId, {
@@ -76,7 +75,7 @@ export const referralService = {
     },
 }
 
-async function addExtraTasks(userId: string) {
+async function addExtraTasks(userId: string): Promise<void> {
     const referralsCount = await referralRepo.countBy({
         referringUserId: userId,
     })
@@ -84,16 +83,22 @@ async function addExtraTasks(userId: string) {
         return
     }
     const ownerProject = await projectService.getUserProjectOrThrow(userId)
-    const projectPlan = await plansService.getOrCreateDefaultPlan({
-        projectId: ownerProject.id,
-    })
-    const newTasks = projectPlan!.tasks + 500
+    const projectBilling = await projectBillingService.getOrCreateForProject(ownerProject.id)
+    const newBilling = await projectBillingService.increaseTasks(projectBilling.projectId, 500)
+    await projectLimitsService.getOrCreateDefaultPlan(ownerProject.id, DEFAULT_FREE_PLAN_LIMIT)
+    await projectLimitsService.increaseTask(ownerProject.id, 500)
 
-    await plansService.removeDailyTasksAndUpdateTasks({
+    logger.info({
+        message: 'Added 500 tasks to project',
         projectId: ownerProject.id,
-        tasks: newTasks,
+        includedTasks: newBilling.includedTasks,
     })
-    logger.info(
-        `Referral from ${userId}  created and plan for project ${ownerProject.id} updated to add ${newTasks} tasks.`,
-    )
 }
+
+type AddParams = {
+    referringUserId: UserId
+    referredUserId: UserId
+    referredUserEmail: string
+}
+
+type NewReferral = Omit<Referral, 'created' | 'updated'>

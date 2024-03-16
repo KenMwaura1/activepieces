@@ -56,6 +56,7 @@ export type ExecutePropsOptions = BaseEngineOperation & {
     stepName: string
     flowVersion: FlowVersion
     input: Record<string, unknown>
+    searchValue?: string
 }
 
 type BaseExecuteFlowOperation<T extends ExecutionType> = BaseEngineOperation & {
@@ -69,10 +70,9 @@ export type BeginExecuteFlowOperation = BaseExecuteFlowOperation<ExecutionType.B
 }
 
 export type ResumeExecuteFlowOperation = BaseExecuteFlowOperation<ExecutionType.RESUME> & {
-    executionState: ExecutionState
     tasks: number
     resumePayload: ResumePayload
-}
+} & ExecutionState
 
 export type ExecuteFlowOperation = BeginExecuteFlowOperation | ResumeExecuteFlowOperation
 

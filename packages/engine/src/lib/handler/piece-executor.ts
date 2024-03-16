@@ -1,15 +1,13 @@
-import { AUTHENTICATION_PROPERTY_NAME, GenericStepOutput, ActionType, ExecutionOutputStatus, PieceAction, StepOutputStatus, assertNotNullOrUndefined, isNil, ExecutionType, PauseType } from '@activepieces/shared'
+import { AUTHENTICATION_PROPERTY_NAME, GenericStepOutput, ActionType, PieceAction, StepOutputStatus, assertNotNullOrUndefined, isNil, ExecutionType, PauseType, FlowRunStatus } from '@activepieces/shared'
 import { ActionHandler, BaseExecutor } from './base-executor'
 import { ExecutionVerdict, FlowExecutorContext } from './context/flow-execution-context'
-import { variableService } from '../services/variable-service'
 import { ActionContext, ConnectionsManager, PauseHook, PauseHookParams, PiecePropertyMap, StaticPropsValue, StopHook, StopHookParams, TagsManager } from '@activepieces/pieces-framework'
 import { createContextStore } from '../services/storage.service'
 import { createFilesService } from '../services/files.service'
 import { createConnectionService } from '../services/connections.service'
 import { EngineConstants } from './context/engine-constants'
 import { pieceLoader } from '../helper/piece-loader'
-import { utils } from '../utils'
-import { continueIfFailureHandler, runWithExponentialBackoff } from '../helper/error-handling'
+import { continueIfFailureHandler, handleExecutionError, runWithExponentialBackoff } from '../helper/error-handling'
 import { URL } from 'url'
 
 type HookResponse = { stopResponse: StopHookParams | undefined, pauseResponse: PauseHookParams | undefined, tags: string[], stopped: boolean, paused: boolean }
@@ -33,22 +31,12 @@ export const pieceExecutor: BaseExecutor<PieceAction> = {
 }
 
 const executeAction: ActionHandler<PieceAction> = async ({ action, executionState, constants }) => {
-    const {
-        censoredInput,
-        resolvedInput,
-    } = await variableService({
-        projectId: constants.projectId,
-        workerToken: constants.workerToken,
-    }).resolve<StaticPropsValue<PiecePropertyMap>>({
-        unresolvedInput: action.settings.input,
-        executionState,
-    })
-
     const stepOutput = GenericStepOutput.create({
-        input: censoredInput,
+        input: {},
         type: ActionType.PIECE,
         status: StepOutputStatus.SUCCEEDED,
     })
+
     try {
         assertNotNullOrUndefined(action.settings.actionName, 'actionName')
         const { pieceAction, piece } = await pieceLoader.getPieceAndActionOrThrow({
@@ -57,6 +45,13 @@ const executeAction: ActionHandler<PieceAction> = async ({ action, executionStat
             actionName: action.settings.actionName,
             piecesSource: constants.piecesSource,
         })
+
+        const { resolvedInput, censoredInput } = await constants.variableService.resolve<StaticPropsValue<PiecePropertyMap>>({
+            unresolvedInput: action.settings.input,
+            executionState,
+        })
+
+        stepOutput.input = censoredInput
 
         const { processedInput, errors } = await constants.variableService.applyProcessorsAndValidators(resolvedInput, pieceAction.props, piece.auth)
         if (Object.keys(errors).length > 0) {
@@ -112,7 +107,7 @@ const executeAction: ActionHandler<PieceAction> = async ({ action, executionStat
                 const url = new URL(`${constants.serverUrl}v1/flow-runs/${constants.flowRunId}/requests/${executionState.pauseRequestId}`)
                 url.search = new URLSearchParams(params.queryParams).toString()
                 return url.toString()
-            },            
+            },
         }
         const runMethodToExecute = (constants.testSingleStepMode && !isNil(pieceAction.test)) ? pieceAction.test : pieceAction.run
         const output = await runMethodToExecute(context)
@@ -121,7 +116,7 @@ const executeAction: ActionHandler<PieceAction> = async ({ action, executionStat
         if (hookResponse.stopped) {
             assertNotNullOrUndefined(hookResponse.stopResponse, 'stopResponse')
             return newExecutionContext.upsertStep(action.name, stepOutput.setOutput(output)).setVerdict(ExecutionVerdict.SUCCEEDED, {
-                reason: ExecutionOutputStatus.STOPPED,
+                reason: FlowRunStatus.STOPPED,
                 stopResponse: hookResponse.stopResponse.response,
             }).increaseTask()
         }
@@ -129,7 +124,7 @@ const executeAction: ActionHandler<PieceAction> = async ({ action, executionStat
             assertNotNullOrUndefined(hookResponse.pauseResponse, 'pauseResponse')
             return newExecutionContext.upsertStep(action.name, stepOutput.setOutput(output).setStatus(StepOutputStatus.PAUSED))
                 .setVerdict(ExecutionVerdict.PAUSED, {
-                    reason: ExecutionOutputStatus.PAUSED,
+                    reason: FlowRunStatus.PAUSED,
                     pauseMetadata: hookResponse.pauseResponse.pauseMetadata,
                 })
         }
@@ -137,13 +132,15 @@ const executeAction: ActionHandler<PieceAction> = async ({ action, executionStat
         return newExecutionContext.upsertStep(action.name, stepOutput.setOutput(output)).increaseTask().setVerdict(ExecutionVerdict.RUNNING, undefined)
     }
     catch (e) {
-        const errorMessage = await utils.tryParseJson((e as Error).message)
-        console.error(errorMessage)
+        const handledError = handleExecutionError(e)
+
+        const failedStepOutput = stepOutput
+            .setStatus(StepOutputStatus.FAILED)
+            .setErrorMessage(handledError.message)
 
         return executionState
-            .upsertStep(action.name, stepOutput.setStatus(StepOutputStatus.FAILED).setErrorMessage(errorMessage))
-            .setVerdict(ExecutionVerdict.FAILED, undefined)
-
+            .upsertStep(action.name, failedStepOutput)
+            .setVerdict(ExecutionVerdict.FAILED, handledError.verdictResponse)
     }
 }
 

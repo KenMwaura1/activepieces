@@ -7,6 +7,8 @@ import {
   TriggerType,
   ApFlagId,
   PieceScope,
+  ListPiecesRequestQuery,
+  spreadIfDefined,
 } from '@activepieces/shared';
 import { HttpClient } from '@angular/common/http';
 import {
@@ -36,6 +38,7 @@ import {
 
 type TriggersMetadata = Record<string, TriggerBase>;
 
+//TODO remove all hardcoded pieces names and mentions
 export const CORE_PIECES_ACTIONS_NAMES = [
   '@activepieces/piece-store',
   '@activepieces/piece-data-mapper',
@@ -50,6 +53,10 @@ export const CORE_PIECES_ACTIONS_NAMES = [
   '@activepieces/piece-date-helper',
   '@activepieces/piece-file-helper',
   '@activepieces/piece-math-helper',
+  '@activepieces/piece-activity',
+  '@activepieces/piece-image-helper',
+  '@activepieces/piece-crypto',
+
 ];
 export const corePieceIconUrl = (pieceName: string) =>
   `assets/img/custom/piece/${pieceName.replace(
@@ -65,7 +72,7 @@ export class PieceMetadataService {
   private release$ = this.flagsService.getRelease().pipe(shareReplay(1));
   private clearCache$ = new Subject<void>();
   private edition$ = this.flagsService.getEdition();
-  private piecesManifest$ = this.getPiecesMetadataIncludeHidden({
+  private piecesManifest$ = this.getPiecesManifestFromServer({
     includeHidden: false,
   });
   private piecesCache = new Map<string, Observable<PieceMetadataModel>>();
@@ -92,12 +99,6 @@ export class PieceMetadataService {
   ];
 
   public triggerItemsDetails: FlowItemDetails[] = [
-    {
-      type: TriggerType.WEBHOOK,
-      name: 'Webhook',
-      description: 'Trigger flow by calling a unique web url',
-      logoUrl: '/assets/img/custom/piece/webhook.svg',
-    },
     {
       type: TriggerType.EMPTY,
       name: 'Trigger',
@@ -133,16 +134,17 @@ export class PieceMetadataService {
     edition,
   }: {
     pieceName: string;
-    pieceVersion: string;
+    pieceVersion?: string;
     edition: ApEdition;
   }): Observable<PieceMetadataModel> {
+      const params= {
+      ...spreadIfDefined('version',pieceVersion),
+      edition,
+    };
     return this.http.get<PieceMetadataModel>(
       `${environment.apiUrl}/pieces/${encodeURIComponent(pieceName)}`,
       {
-        params: {
-          version: pieceVersion,
-          edition,
-        },
+        params
       }
     );
   }
@@ -210,9 +212,10 @@ export class PieceMetadataService {
 
   getPieceMetadata(
     pieceName: string,
-    pieceVersion: string
+    pieceVersion?: string
   ): Observable<PieceMetadataModel> {
-    const cacheKey = this.getCacheKey(pieceName, pieceVersion);
+    
+    const cacheKey = this.getCacheKey(pieceName, pieceVersion || 'latest');
 
     if (this.piecesCache.has(cacheKey)) {
       return this.piecesCache.get(cacheKey)!;
@@ -264,35 +267,37 @@ export class PieceMetadataService {
           url: 'assets/img/custom/piece/loop_mention.png',
           key: 'loop',
         };
-      case TriggerType.WEBHOOK:
-        return {
-          url: 'assets/img/custom/piece/webhook_mention.png',
-          key: 'webhook',
-        };
     }
 
     throw new Error("Step type isn't accounted for");
   }
 
-  getPiecesMetadataIncludeHidden({
+  getPiecesManifestFromServer({
     includeHidden,
-  }: {
-    includeHidden: boolean;
-  }) {
+    searchQuery,
+    suggestionType
+  }: ListPiecesRequestQuery) {
+    
     return combineLatest([
       this.edition$,
       this.release$,
       this.clearCache$.asObservable().pipe(startWith(void 0)),
     ]).pipe(
       switchMap(([edition, release]) => {
+        let params:Record<string,boolean|string>= {
+          release,
+          edition
+        };
+        params= {
+          ...params,
+          ...spreadIfDefined('includeHidden', includeHidden),
+          ...spreadIfDefined('searchQuery', searchQuery),
+          ...spreadIfDefined('suggestionType', suggestionType)
+        }
         return this.http.get<PieceMetadataModelSummary[]>(
           `${environment.apiUrl}/pieces`,
           {
-            params: {
-              includeHidden,
-              release,
-              edition,
-            },
+            params
           }
         );
       }),

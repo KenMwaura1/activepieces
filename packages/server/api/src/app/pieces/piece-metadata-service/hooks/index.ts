@@ -1,20 +1,23 @@
 import { PieceMetadataSchema } from '../../piece-metadata-entity'
-import { PlatformId } from '@activepieces/ee-shared'
-import { PieceSortBy, PieceOrderBy, PieceCategory } from '@activepieces/shared'
+import { PieceSortBy, PieceOrderBy, PieceCategory, SuggestionType, PlatformId } from '@activepieces/shared'
 import { filterPiecesBasedUser } from './piece-filtering'
 import { sortAndOrderPieces } from './piece-sorting'
 
 export const defaultPieceHooks: PieceMetadataServiceHooks = {
     async filterPieces(params) {
-        return sortAndOrderPieces(
+        const sortedPieces = sortAndOrderPieces(
             params.sortBy,
             params.orderBy,
-            filterPiecesBasedUser({
-                categories: params.categories,
-                searchQuery: params.searchQuery,
-                pieces: params.pieces,
-            }),
+            params.pieces,
         )
+        
+        return filterPiecesBasedUser({
+            categories: params.categories,
+            searchQuery: params.searchQuery,
+            pieces: sortedPieces,
+            platformId: params.platformId,
+            suggestionType: params.suggestionType,
+        })
     },
 }
 
@@ -42,4 +45,5 @@ export type FilterPiecesParams = {
     sortBy?: PieceSortBy
     orderBy?: PieceOrderBy
     pieces: PieceMetadataSchema[]
+    suggestionType?: SuggestionType
 }

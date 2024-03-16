@@ -1,35 +1,92 @@
-import { EngineConstants } from '../handler/context/engine-constants'
+import { StatusCodes } from 'http-status-codes'
 import { AppConnection, AppConnectionType, CloudOAuth2ConnectionValue, BasicAuthConnectionValue, OAuth2ConnectionValueWithApp } from '@activepieces/shared'
+import { EngineConstants } from '../handler/context/engine-constants'
+import { ConnectionLoadingError, ConnectionNotFoundError, ExecutionError, FetchError } from '../helper/execution-errors'
 
-export const createConnectionService = ({ projectId, workerToken }: { projectId: string, workerToken: string }) => {
+export const createConnectionService = ({ projectId, workerToken }: CreateConnectionServiceParams): ConnectionService => {
     return {
-        async obtain(connectionName: string): Promise<null | OAuth2ConnectionValueWithApp | CloudOAuth2ConnectionValue | BasicAuthConnectionValue | string | Record<string, unknown>> {
+        async obtain(connectionName: string): Promise<ConnectionValue> {
             const url = `${EngineConstants.API_URL}v1/worker/app-connections/${encodeURIComponent(connectionName)}?projectId=${projectId}`
+
             try {
                 const response = await fetch(url, {
                     method: 'GET',
                     headers: {
-                        Authorization: 'Bearer ' + workerToken,
+                        Authorization: `Bearer ${workerToken}`,
                     },
                 })
+
                 if (!response.ok) {
-                    throw new Error('Connection information failed to load. URL: ' + url)
+                    return handleResponseError({
+                        connectionName,
+                        httpStatus: response.status,
+                    })
                 }
-                const result: AppConnection | null = await response.json()
-                if (result === null) {
-                    return null
-                }
-                if (result.value.type === AppConnectionType.SECRET_TEXT) {
-                    return result.value.secret_text
-                }
-                if (result.value.type === AppConnectionType.CUSTOM_AUTH) {
-                    return result.value.props
-                }
-                return result.value
+
+                const connection = await response.json()
+                return getConnectionValue(connection)
             }
             catch (e) {
-                throw new Error('Connection information failed to load. URL: ' + url + ' Error: ' + e)
+                if (e instanceof ExecutionError) {
+                    throw e
+                }
+
+                return handleFetchError({
+                    url,
+                    cause: e,
+                })
             }
         },
     }
+}
+
+const handleResponseError = ({ connectionName, httpStatus }: HandleResponseErrorParams): never => {
+    if (httpStatus === StatusCodes.NOT_FOUND.valueOf()) {
+        throw new ConnectionNotFoundError(connectionName)
+    }
+
+    throw new ConnectionLoadingError(connectionName)
+}
+
+const handleFetchError = ({ url, cause }: HandleFetchErrorParams): never => {
+    throw new FetchError(url, cause)
+}
+
+const getConnectionValue = (connection: AppConnection): ConnectionValue => {
+    switch (connection.value.type) {
+        case AppConnectionType.SECRET_TEXT:
+            return connection.value.secret_text
+
+        case AppConnectionType.CUSTOM_AUTH:
+            return connection.value.props
+
+        default:
+            return connection.value
+    }
+}
+
+type ConnectionValue =
+    | OAuth2ConnectionValueWithApp
+    | CloudOAuth2ConnectionValue
+    | BasicAuthConnectionValue
+    | Record<string, unknown>
+    | string
+
+type ConnectionService = {
+    obtain(connectionName: string): Promise<ConnectionValue>
+}
+
+type CreateConnectionServiceParams = {
+    projectId: string
+    workerToken: string
+}
+
+type HandleResponseErrorParams = {
+    connectionName: string
+    httpStatus: number
+}
+
+type HandleFetchErrorParams = {
+    url: string
+    cause: unknown
 }

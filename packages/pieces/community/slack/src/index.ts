@@ -14,6 +14,7 @@ import { slackSendDirectMessageAction } from './lib/actions/send-direct-message-
 import { slackSendMessageAction } from './lib/actions/send-message-action';
 import { newMessage } from './lib/triggers/new-message';
 import { newReactionAdded } from './lib/triggers/new-reaction-added';
+import { uploadFile } from './lib/actions/upload-file';
 
 export const slackAuth = PieceAuth.OAuth2({
   description: '',
@@ -36,6 +37,7 @@ export const slackAuth = PieceAuth.OAuth2({
 
 export const slack = createPiece({
   displayName: 'Slack',
+  description: 'Channel-based messaging platform',
   minimumSupportedRelease: '0.20.0',
   logoUrl: 'https://cdn.activepieces.com/pieces/slack.png',
   categories: [PieceCategory.COMMUNICATION],
@@ -67,6 +69,7 @@ export const slack = createPiece({
       return signature === computedSignature;
     },
   },
+  authors: ["rita-gorokhod","AdamSelene","Abdallah-Alwarawreh","kishanprmr","MoShizzle","AbdulTheActivePiecer","khaledmashaly","abuaboud"],
   actions: [
     slackSendDirectMessageAction,
     slackSendMessageAction,
@@ -74,6 +77,7 @@ export const slack = createPiece({
     requestSendApprovalMessageAction,
     requestActionDirectMessageAction,
     requestActionMessageAction,
+    uploadFile,
     createCustomApiCallAction({
       baseUrl: () => {
         return 'https://slack.com/api';

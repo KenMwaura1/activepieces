@@ -2,8 +2,7 @@ import { createFeatureSelector, createSelector } from '@ngrx/store';
 import { GlobalBuilderState } from '../../model/global-builder-state.model';
 
 import {
-  AppConnectionWithoutSensitiveData,
-  ExecutionOutputStatus,
+  FlowRunStatus,
   FlowRun,
   FlowVersion,
   FlowVersionState,
@@ -14,11 +13,9 @@ import { ViewModeEnum } from '../../model/enums/view-mode.enum';
 import { FlowItemsDetailsState } from '../../model/flow-items-details-state.model';
 import { ActionType, TriggerType } from '@activepieces/shared';
 import { Step, StepWithIndex } from '../../model/step';
-import { MentionListItem } from '../../model/mention-list-item';
 import { FlowStructureUtil } from '../../utils/flowStructureUtil';
-import { ConnectionDropdownItem } from '../../model/connections-dropdown-item';
 import { BuilderSavingStatusEnum, CanvasState } from '../../model';
-import { FlowItemDetails } from '@activepieces/ui/common';
+import { FlowItemDetails, MentionListItem } from '@activepieces/ui/common';
 import { StepRunResult } from '../../utils/stepRunResult';
 import {
   CORE_PIECES_ACTIONS_NAMES,
@@ -146,11 +143,7 @@ const selectCurrentStepSettings = createSelector(
 const selectTriggerSelectedSampleData = createSelector(
   selectCurrentStep,
   (step) => {
-    if (
-      step &&
-      (step.type === TriggerType.PIECE || step.type === TriggerType.WEBHOOK) &&
-      step.settings.inputUiInfo
-    ) {
+    if (step && step.type === TriggerType.PIECE && step.settings.inputUiInfo) {
       return step.settings.inputUiInfo.currentSelectedData;
     }
     return undefined;
@@ -262,23 +255,19 @@ const selectStepResultsAccordion = createSelector(
   selectCurrentFlow,
   selectCurrentFlowRun,
   (flow, run) => {
-    if (!run || run.status === ExecutionOutputStatus.RUNNING) {
+    if (!run || run.status === FlowRunStatus.RUNNING) {
       return [];
     }
     const steps = flowHelper.getAllSteps(flow.version.trigger);
     const results: StepRunResult[] = [];
-    const executionState = run.executionOutput?.executionState;
-    if (!executionState) {
-      return [];
-    }
     steps.forEach((s) => {
       const stepIndex = FlowStructureUtil.findStepIndex(
         flow.version.trigger,
         s.name
       );
-      if (executionState?.steps[s.name]) {
+      if (run.steps[s.name]) {
         results.push({
-          output: executionState.steps[s.name],
+          output: run.steps[s.name],
           stepName: s.name,
           displayName: s.displayName,
           index: stepIndex,
@@ -400,74 +389,6 @@ export const selectFlowItemDetails = (flowItem: Step) =>
     return triggerItemDetails;
   });
 
-const selectAllAppConnections = createSelector(
-  selectGlobalBuilderState,
-  (globalState) => globalState.appConnectionsState.connections
-);
-
-export const selectConnection = (connectionName: string) =>
-  createSelector(
-    selectAllAppConnections,
-    (connections: AppConnectionWithoutSensitiveData[]) => {
-      return connections.find((c) => c.name === connectionName);
-    }
-  );
-
-const selectAppConnectionsDropdownOptions = createSelector(
-  selectAllAppConnections,
-  (connections: AppConnectionWithoutSensitiveData[]) => {
-    return [...connections].map((c) => {
-      const result: ConnectionDropdownItem = {
-        label: { pieceName: c.pieceName, name: c.name },
-        value: `{{connections['${c.name}']}}`,
-      };
-      return result;
-    });
-  }
-);
-
-const selectAppConnectionsDropdownOptionsWithIds = createSelector(
-  selectAllAppConnections,
-  (connections: AppConnectionWithoutSensitiveData[]) => {
-    return [...connections].map((c) => {
-      const result: ConnectionDropdownItem = {
-        label: { pieceName: c.pieceName, name: c.name },
-        value: c.id,
-      };
-      return result;
-    });
-  }
-);
-
-const selectAppConnectionsDropdownOptionsForAppWithIds = (appName: string) => {
-  return createSelector(
-    selectAppConnectionsDropdownOptionsWithIds,
-    (connections) => {
-      return connections
-        .filter((opt) => opt.label.pieceName === appName)
-        .map((c) => {
-          const result: ConnectionDropdownItem = {
-            label: { pieceName: c.label.pieceName, name: c.label.name },
-            value: c.value,
-          };
-          return result;
-        });
-    }
-  );
-};
-const selectAppConnectionsForMentionsDropdown = createSelector(
-  selectAllAppConnections,
-  (connections: AppConnectionWithoutSensitiveData[]) => {
-    return [...connections].map((c) => {
-      const result: MentionListItem = {
-        label: c.name,
-        value: `{{connections['${c.name}']}}`,
-      };
-      return result;
-    });
-  }
-);
-
 const selectAllStepsForMentionsDropdown = createSelector(
   selectCurrentStep,
   selectViewedVersion,
@@ -528,8 +449,6 @@ function findStepLogoUrlForMentions(
       return 'assets/img/custom/piece/emptyTrigger.png';
     case ActionType.BRANCH:
       return 'assets/img/custom/piece/branch_mention.png';
-    case TriggerType.WEBHOOK:
-      return 'assets/img/custom/piece/webhook_mention.png';
     case ActionType.LOOP_ON_ITEMS:
       return 'assets/img/custom/piece/loop_mention.png';
     case ActionType.CODE:
@@ -586,8 +505,6 @@ const selectFlowTriggerIsTested = createSelector(selectCurrentFlow, (flow) => {
   switch (flow.version.trigger.type) {
     case TriggerType.EMPTY:
       return false;
-    case TriggerType.WEBHOOK:
-      return !!flow.version.trigger.settings.inputUiInfo.currentSelectedData;
     case TriggerType.PIECE:
       return !!flow.version.trigger.settings.inputUiInfo.currentSelectedData;
   }
@@ -628,11 +545,8 @@ export const BuilderSelectors = {
   selectFlowItemDetailsForCoreTriggers,
   selectCurrentFlowValidity,
   selectFlowItemDetailsForCustomPiecesActions,
-  selectAppConnectionsDropdownOptions,
   selectFlowItemDetailsForCustomPiecesTriggers,
-  selectAllAppConnections,
   selectAllStepsForMentionsDropdown,
-  selectAppConnectionsForMentionsDropdown,
   selectStepLogoUrl,
   selectCurrentStepSettings,
   selectTriggerSelectedSampleData,
@@ -654,8 +568,6 @@ export const BuilderSelectors = {
   selectStepDisplayNameAndDfsIndexForIterationOutput,
   selectLastClickedAddBtnId,
   selectFlowTriggerIsTested,
-  selectAppConnectionsDropdownOptionsForAppWithIds,
-  selectAppConnectionsDropdownOptionsWithIds,
   selectStepIndex,
   selectFlowStatus,
   selectViewedVersionHistoricalStatus,

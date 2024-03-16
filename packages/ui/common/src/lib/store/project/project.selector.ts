@@ -1,7 +1,8 @@
 import { createSelector } from '@ngrx/store';
-import { CommonStateModel, ProjectsState } from '../common-state.model';
+import { CommonStateModel } from '../common-state.model';
 import { selectCommonState } from '../common.selector';
 import { NotificationStatus } from '@activepieces/shared';
+import { ProjectsState } from './project-state.model';
 
 const selectProjectState = createSelector(
   selectCommonState,
@@ -43,10 +44,19 @@ const selectCurrentProjectOwnerId = createSelector(
   }
 );
 
+const selectTaskProgress = createSelector(selectCurrentProject, (project) => {
+  const castedProject = project;
+  return {
+    tasksCap: castedProject.plan.tasks,
+    tasksExecuted: castedProject.usage.tasks,
+  };
+});
+
 export const ProjectSelectors = {
   selectCurrentProjectOwnerId,
   selectIsNotificationsEnabled,
   selectPlatform,
   selectAllProjects,
   selectCurrentProject,
+  selectTaskProgress,
 };
