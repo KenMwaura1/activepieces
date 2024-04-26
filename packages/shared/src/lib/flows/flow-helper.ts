@@ -1,13 +1,7 @@
-import {
-    AddActionRequest,
-    DeleteActionRequest,
-    FlowOperationType,
-    FlowOperationRequest,
-    UpdateActionRequest,
-    UpdateTriggerRequest,
-    StepLocationRelativeToParent,
-    MoveActionRequest,
-} from './flow-operations'
+import { TypeCompiler } from '@sinclair/typebox/compiler'
+import semver from 'semver'
+import { applyFunctionToValuesSync, isNil, isString } from '../common'
+import { ActivepiecesError, ErrorCode } from '../common/activepieces-error'
 import {
     Action,
     ActionType,
@@ -15,12 +9,19 @@ import {
     LoopOnItemsAction,
     SingleActionSchema,
 } from './actions/action'
-import { Trigger, TriggerType } from './triggers/trigger'
-import { TypeCompiler } from '@sinclair/typebox/compiler'
+import {
+    AddActionRequest,
+    DeleteActionRequest,
+    FlowOperationRequest,
+    FlowOperationType,
+    MoveActionRequest,
+    StepLocationRelativeToParent,
+    UpdateActionRequest,
+    UpdateTriggerRequest,
+} from './flow-operations'
 import { FlowVersion, FlowVersionState } from './flow-version'
-import { ActivepiecesError, ErrorCode } from '../common/activepieces-error'
-import semver from 'semver'
-import { applyFunctionToValuesSync, isNil, isString } from '../common'
+import { DEFAULT_SAMPLE_DATA_SETTINGS } from './sample-data'
+import { Trigger, TriggerType } from './triggers/trigger'
 
 type Step = Action | Trigger
 
@@ -707,6 +708,17 @@ function removeAnySubsequentAction(action: Action): Action {
     return clonedAction
 }
 
+function normalize(flowVersion: FlowVersion): FlowVersion {
+    return transferFlow(
+        flowVersion,
+        (step) => {
+            const clonedStep: Step = JSON.parse(JSON.stringify(step))
+            clonedStep.settings.inputUiInfo = DEFAULT_SAMPLE_DATA_SETTINGS
+            return upgradePiece(clonedStep, clonedStep.name)
+        },
+    )
+}
+
 function upgradePiece(step: Step, stepName: string): Step {
     if (step.name !== stepName) {
         return step
@@ -736,7 +748,7 @@ function upgradePiece(step: Step, stepName: string): Step {
     return clonedStep
 }
 
-// TODO Remove this in 2024, these pieces didn't follow the standarad versioning where the minor version has to be increased when there is breaking change.
+// TODO Remove this in 2024, these pieces didn't follow the standard versioning where the minor version has to be increased when there is breaking change.
 function isLegacyApp({ pieceName, pieceVersion }: { pieceName: string, pieceVersion: string }) {
     let newVersion = pieceVersion
     if (newVersion.startsWith('^') || newVersion.startsWith('~')) {
@@ -813,9 +825,11 @@ function replaceOldStepNameWithNewOne({ input, oldStepName, newStepName }: { inp
     })
 }
 
-function doesActionHaveChildren(action: Action): action is (LoopOnItemsAction | BranchAction) {
-    const actionTypesWithChildren = [ActionType.BRANCH, ActionType.LOOP_ON_ITEMS]
-    return actionTypesWithChildren.includes(action.type)
+function doesActionHaveChildren(action: Action | Trigger): action is (LoopOnItemsAction | BranchAction) {
+    if (action.type === ActionType.BRANCH || action.type === ActionType.LOOP_ON_ITEMS) {
+        return true
+    }
+    return false
 }
 
 
@@ -970,6 +984,7 @@ export const flowHelper = {
     getUsedPieces,
     getImportOperations,
     getAllSubFlowSteps,
+    normalize,
     getStepFromSubFlow,
     isChildOf,
     transferFlowAsync,

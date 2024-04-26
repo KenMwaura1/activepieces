@@ -1,52 +1,51 @@
 import {
-  AfterViewInit,
   ChangeDetectionStrategy,
+  ChangeDetectorRef,
   Component,
   Input,
 } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
-import { HighlightService } from '../../service/highlight.service';
 import { JsonViewDialogComponent } from './json-view-dialog/json-view-dialog.component';
 import { copyText } from '../../utils/tables.utils';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { downloadJson } from '../../utils/consts';
+import { downloadJson, jsonEditorOptionsMonaco } from '../../utils/consts';
+import { FormControl } from '@angular/forms';
+import { outputLog } from '../../pipe/output-log.pipe';
+import { Observable } from 'rxjs';
 
 @Component({
   selector: 'ap-json-viewer',
   templateUrl: './json-view.component.html',
-  styleUrls: ['./json-view.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class JsonViewComponent implements AfterViewInit {
-  highlight = false;
-  _content: unknown;
-  @Input() isInput = false;
+export class JsonViewComponent {
+  readonly jsonEditorOptionsMonaco = jsonEditorOptionsMonaco;
+  jsonFormController = new FormControl('');
+  _content = '';
+  containerWidthChange$?: Observable<number>;
+  readonly containerMaxHeight = 600;
+  readonly containerMinHeight = 100;
+  containerHeight = 0;
+  @Input() hideMaximize = false;
   @Input() title: string;
-  @Input() maxHeight: number | undefined = undefined;
   @Input() set content(value: unknown) {
-    this.highlight = false;
-    this._content = value;
-    if (typeof this._content !== 'string') {
-      this.highlight = true;
-    }
-    setTimeout(() => {
-      if (this.highlight) {
-        this.highlightService.highlightAll();
+    const formattedOutput = outputLog(value, false);
+    if (formattedOutput !== this._content) {
+      this._content = formattedOutput;
+      this.jsonFormController.setValue(this._content || '');
+      if (this.editor) {
+        setTimeout(() => {
+          this.resizeEditorToContent(this.editor);
+        });
       }
-    }, 10);
-  }
-
-  constructor(
-    private highlightService: HighlightService,
-    private dialogService: MatDialog,
-    private snackbar: MatSnackBar
-  ) {}
-
-  ngAfterViewInit(): void {
-    if (this.highlight) {
-      this.highlightService.highlightAll();
     }
   }
+  editor?: unknown;
+  constructor(
+    private dialogService: MatDialog,
+    private snackbar: MatSnackBar,
+    private cd: ChangeDetectorRef
+  ) {}
 
   openModal() {
     this.dialogService.open(JsonViewDialogComponent, {
@@ -54,16 +53,20 @@ export class JsonViewComponent implements AfterViewInit {
     });
   }
   copyContent() {
-    if (typeof this._content === 'string') {
-      copyText(this._content);
-    } else {
-      copyText(JSON.stringify(this._content));
-    }
-
-    this.snackbar.open(`${this.isInput ? 'Input' : 'Output'} copied`);
+    copyText(this._content);
+    this.snackbar.open(`${this.title} copied`);
   }
 
   downloadContent() {
     downloadJson(this._content, this.title);
+  }
+  resizeEditorToContent(editor: any) {
+    this.editor = editor;
+    const contentHeight = editor.getContentHeight();
+    this.containerHeight = Math.max(
+      Math.min(contentHeight, this.containerMaxHeight),
+      this.containerMinHeight
+    );
+    this.cd.markForCheck();
   }
 }

@@ -16,13 +16,17 @@ import {
   FlowStatus,
   FolderId,
   FlowOperationType,
+  TelemetryEventName,
+  ApFlagId,
 } from '@activepieces/shared';
 import {
   ApPaginatorComponent,
   AuthenticationService,
   EmbeddingService,
+  FlagService,
   FoldersService,
   NavigationService,
+  TelemetryService,
   downloadFlow,
   flowActionsUiInfo,
 } from '@activepieces/ui/common';
@@ -44,6 +48,7 @@ import {
   RenameFlowDialogComponent,
   RenameFlowDialogData,
 } from '../../components/dialogs/rename-flow-dialog/rename-flow-dialog.component';
+import { RewardsDialogComponent } from '../../components/dialogs/rewards-dialog/rewards-dialog.component';
 
 @Component({
   templateUrl: './flows-table.component.html',
@@ -73,7 +78,7 @@ export class FlowsTableComponent implements OnInit {
   downloadTemplate$?: Observable<void>;
   renameFlow$?: Observable<boolean>;
   hideFolders$ = this.embeddingService.getHideFolders$();
-
+  showRewards$: Observable<boolean>;
   constructor(
     private activatedRoute: ActivatedRoute,
     private dialogService: MatDialog,
@@ -83,10 +88,13 @@ export class FlowsTableComponent implements OnInit {
     private authenticationService: AuthenticationService,
     private navigationService: NavigationService,
     private embeddingService: EmbeddingService,
+    private telemetryService: TelemetryService,
+    private flagService: FlagService,
     @Inject(LOCALE_ID) public locale: string
   ) {
     this.showAllFlows$ = this.listenToShowAllFolders();
     this.folderId$ = this.store.select(FoldersSelectors.selectCurrentFolderId);
+    this.showRewards$ = this.flagService.isFlagEnabled(ApFlagId.SHOW_REWARDS);
   }
 
   private listenToShowAllFolders() {
@@ -134,9 +142,13 @@ export class FlowsTableComponent implements OnInit {
   }
 
   openBuilder(flow: PopulatedFlow, event: MouseEvent) {
-    const link = '/flows/' + flow.id;
-    const newWindow = event.ctrlKey || event.which == 2 || event.button == 4;
-    this.navigationService.navigate(link, newWindow);
+    const route = ['/flows/' + flow.id];
+    const openInNewWindow =
+      event.ctrlKey || event.which == 2 || event.button == 4;
+    this.navigationService.navigate({
+      route,
+      openInNewWindow,
+    });
   }
 
   deleteFlow(flow: PopulatedFlow) {
@@ -232,5 +244,14 @@ export class FlowsTableComponent implements OnInit {
           }
         })
       );
+  }
+  openRewardsDialog() {
+    this.dialogService.open(RewardsDialogComponent);
+    this.telemetryService.capture({
+      name: TelemetryEventName.REWARDS_OPENED,
+      payload: {
+        source: 'rewards-button',
+      },
+    });
   }
 }

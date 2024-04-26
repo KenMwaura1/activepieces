@@ -87,13 +87,13 @@ export const gmailSendEmailAction = createAction({
     const replyTo = configValue.propsValue['reply_to']?.filter(
       (email) => email !== ''
     );
-    const reciever = configValue.propsValue['receiver']?.filter(
+    const receiver = configValue.propsValue['receiver']?.filter(
       (email) => email !== ''
     );
     const cc = configValue.propsValue['cc']?.filter((email) => email !== '');
     const bcc = configValue.propsValue['bcc']?.filter((email) => email !== '');
     const mailOptions: Mail.Options = {
-      to: reciever.join(', '), // Join all email addresses with a comma
+      to: receiver.join(', '), // Join all email addresses with a comma
       cc: cc ? cc.join(', ') : undefined,
       bcc: bcc ? bcc.join(', ') : undefined,
       subject: `=?UTF-8?B?${subjectBase64}?=`,
@@ -115,11 +115,11 @@ export const gmailSendEmailAction = createAction({
 
     if (attachment) {
       const lookupResult = mime.lookup(
-        attachment?.extension ? attachment?.extension : ''
+        attachment.extension ? attachment.extension : ''
       );
       const attachmentOption: Attachment[] = [
         {
-          filename: attachment?.filename,
+          filename: configValue.propsValue.attachment_name ?? attachment.filename ,
           content: attachment?.base64,
           contentType: lookupResult ? lookupResult : undefined,
           encoding: 'base64',

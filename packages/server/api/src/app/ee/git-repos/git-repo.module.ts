@@ -2,24 +2,23 @@ import {
     FastifyPluginCallbackTypebox,
     Type,
 } from '@fastify/type-provider-typebox'
+import { FastifyPluginAsync } from 'fastify'
+import { StatusCodes } from 'http-status-codes'
+import { platformService } from '../../platform/platform.service'
 import { gitRepoService } from './git-repo.service'
-import { PrincipalType, SERVICE_KEY_SECURITY_OPENAPI, SeekPage } from '@activepieces/shared'
 import {
     ConfigureRepoRequest,
     GitRepoWithoutSensitiveData,
     ProjectSyncPlan,
-    PullGitRepoFromPojectRequest,
+    PullGitRepoFromProjectRequest,
     PullGitRepoRequest,
     PushGitRepoRequest,
 } from '@activepieces/ee-shared'
-import { StatusCodes } from 'http-status-codes'
-import { FastifyPluginAsync } from 'fastify'
-import { platformService } from '../../platform/platform.service'
+import { ActivepiecesError, ErrorCode, PrincipalType, SeekPage, SERVICE_KEY_SECURITY_OPENAPI } from '@activepieces/shared'
 
 export const gitRepoModule: FastifyPluginAsync = async (app) => {
     await app.register(gitRepoController, { prefix: '/v1/git-repos' })
 }
-
 
 export const gitRepoController: FastifyPluginCallbackTypebox = (
     app,
@@ -28,8 +27,9 @@ export const gitRepoController: FastifyPluginCallbackTypebox = (
 ): void => {
 
     app.post('/pull', PullRepoFromProjectRequestSchema, async (request) => {
-        const gitRepo = await gitRepoService.getOneByProjectOrThrow({ projectId: request.body.projectId })
+        await assertFeatureEnabled(request.principal.platform.id)
         const platform = await platformService.getOneOrThrow(request.principal.platform.id)
+        const gitRepo = await gitRepoService.getOneByProjectOrThrow({ projectId: request.body.projectId })
         const userId = platform.ownerId
         await gitRepoService.pull({
             gitRepo,
@@ -39,16 +39,19 @@ export const gitRepoController: FastifyPluginCallbackTypebox = (
     })
 
     app.post('/', ConfigureRepoRequestSchema, async (request, reply) => {
+        await assertFeatureEnabled(request.principal.platform.id)
         await reply
             .status(StatusCodes.CREATED)
             .send(await gitRepoService.upsert(request.body))
     })
 
     app.get('/', ListRepoRequestSchema, async (request) => {
+        await assertFeatureEnabled(request.principal.platform.id)
         return gitRepoService.list(request.query)
     })
 
     app.post('/:id/push', PushRepoRequestSchema, async (request) => {
+        await assertFeatureEnabled(request.principal.platform.id)
         return gitRepoService.push({
             id: request.params.id,
             userId: request.principal.id,
@@ -57,6 +60,7 @@ export const gitRepoController: FastifyPluginCallbackTypebox = (
     })
 
     app.post('/:id/pull', PullRepoRequestSchema, async (request) => {
+        await assertFeatureEnabled(request.principal.platform.id)
         const gitRepo = await gitRepoService.getOrThrow({
             id: request.params.id,
         })
@@ -68,6 +72,7 @@ export const gitRepoController: FastifyPluginCallbackTypebox = (
     })
 
     app.delete('/:id', DeleteRepoRequestSchema, async (request, reply) => {
+        await assertFeatureEnabled(request.principal.platform.id)
         await gitRepoService.delete({
             id: request.params.id,
             projectId: request.principal.projectId,
@@ -85,7 +90,7 @@ const PullRepoFromProjectRequestSchema = {
     schema: {
         description:
             'Pull all changes from the git repository and overwrite any conflicting changes in the project.',
-        body: PullGitRepoFromPojectRequest,
+        body: PullGitRepoFromProjectRequest,
         tags: ['git-repo'],
         security: [SERVICE_KEY_SECURITY_OPENAPI],
         response: {
@@ -133,13 +138,13 @@ const PushRepoRequestSchema = {
     },
     schema: {
         description:
-            'Push all changes from the project and overwrite any conflicting changes in the git repository.',
+            'Push single flow to the git repository',
         body: PushGitRepoRequest,
         params: Type.Object({
             id: Type.String(),
         }),
         response: {
-            [StatusCodes.OK]: ProjectSyncPlan,
+            [StatusCodes.OK]: Type.Void(),
         },
     },
 }
@@ -159,7 +164,7 @@ const ConfigureRepoRequestSchema = {
 
 const ListRepoRequestSchema = {
     config: {
-        allowedPrincipals: [PrincipalType.USER],
+        allowedPrincipals: [PrincipalType.USER, PrincipalType.SERVICE],
     },
     schema: {
         querystring: Type.Object({
@@ -169,4 +174,17 @@ const ListRepoRequestSchema = {
             [StatusCodes.OK]: SeekPage(GitRepoWithoutSensitiveData),
         },
     },
+}
+
+async function assertFeatureEnabled(platformId: string): Promise<void> {
+    const platform = await platformService.getOneOrThrow(platformId)
+
+    if (!platform.gitSyncEnabled) {
+        throw new ActivepiecesError({
+            code: ErrorCode.FEATURE_DISABLED,
+            params: {
+                message: 'Git repo addon feature is disabled',
+            },
+        })
+    }
 }

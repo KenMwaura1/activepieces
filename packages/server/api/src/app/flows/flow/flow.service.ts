@@ -1,43 +1,50 @@
+import { EntityManager, IsNull } from 'typeorm'
+import { transaction } from '../../core/db/transaction'
+import { acquireLock } from '../../helper/lock'
+import { buildPaginator } from '../../helper/pagination/build-paginator'
+import { paginationHelper } from '../../helper/pagination/pagination-utils'
+import { telemetry } from '../../helper/telemetry.utils'
+import { flowVersionService } from '../flow-version/flow-version.service'
+import { flowFolderService } from '../folder/folder.service'
+import { flowServiceHooks as hooks } from './flow-service-hooks'
 import { FlowEntity } from './flow.entity'
+import { flowRepo } from './flow.repo'
+import { logger } from '@activepieces/server-shared'
 import {
+    ActivepiecesError,
     apId,
     CreateFlowRequest,
     Cursor,
+    ErrorCode,
     Flow,
     flowHelper,
     FlowId,
-    FlowStatus,
     FlowOperationRequest,
     FlowOperationType,
+    FlowStatus,
     FlowTemplateWithoutProjectInformation,
+    FlowVersion,
     FlowVersionId,
     FlowVersionState,
-    ProjectId,
-    SeekPage,
-    TelemetryEventName,
-    UserId,
+    isNil,
     PopulatedFlow,
-    FlowVersion,
+    ProjectId,
+    SeekPage, TelemetryEventName, UserId,
 } from '@activepieces/shared'
-import { flowVersionService } from '../flow-version/flow-version.service'
-import { paginationHelper } from '../../helper/pagination/pagination-utils'
-import { buildPaginator } from '../../helper/pagination/build-paginator'
-import { acquireLock } from '../../helper/lock'
-import { ActivepiecesError, ErrorCode } from '@activepieces/shared'
-import { flowRepo } from './flow.repo'
-import { telemetry } from '../../helper/telemetry.utils'
-import { EntityManager, IsNull } from 'typeorm'
-import { isNil } from '@activepieces/shared'
-import { logger } from 'server-shared'
-import { flowServiceHooks as hooks } from './flow-service-hooks'
-import { transaction } from '../../core/db/transaction'
 
 export const flowService = {
     async create({ projectId, request }: CreateParams): Promise<PopulatedFlow> {
+
+        const folderId = isNil(request.folderName) ? null : (await flowFolderService.upsert({
+            projectId,
+            request: {
+                displayName: request.folderName,
+            },
+        })).id
         const newFlow: NewFlow = {
             id: apId(),
             projectId,
-            folderId: request.folderId ?? null,
+            folderId,
             status: FlowStatus.DISABLED,
             publishedVersionId: null,
             schedule: null,
@@ -119,8 +126,13 @@ export const flowService = {
         return paginationHelper.createPage(populatedFlows, paginationResult.cursor)
     },
 
-    async getOne({ id, projectId }: GetOneParams): Promise<Flow | null> {
+    async getOneById(id: string): Promise<Flow | null> {
         return flowRepo().findOneBy({
+            id,
+        })
+    },
+    async getOne({ id, projectId, entityManager }: GetOneParams): Promise<Flow | null> {
+        return flowRepo(entityManager).findOneBy({
             id,
             projectId,
         })
@@ -137,8 +149,9 @@ export const flowService = {
         projectId,
         versionId,
         removeSecrets = false,
+        entityManager,
     }: GetOnePopulatedParams): Promise<PopulatedFlow | null> {
-        const flow = await flowRepo().findOneBy({
+        const flow = await flowRepo(entityManager).findOneBy({
             id,
             projectId,
         })
@@ -151,6 +164,7 @@ export const flowService = {
             flowId: id,
             versionId,
             removeSecrets,
+            entityManager,
         })
 
         return {
@@ -164,12 +178,14 @@ export const flowService = {
         projectId,
         versionId,
         removeSecrets = false,
+        entityManager,
     }: GetOnePopulatedParams): Promise<PopulatedFlow> {
         const flow = await this.getOnePopulated({
             id,
             projectId,
             versionId,
             removeSecrets,
+            entityManager,
         })
         assertFlowIsNotNull(flow)
         return flow
@@ -260,24 +276,31 @@ export const flowService = {
         id,
         projectId,
         newStatus,
+        entityManager,
     }: UpdateStatusParams): Promise<PopulatedFlow> {
-        const flowToUpdate = await this.getOneOrThrow({ id, projectId })
+        const flowToUpdate = await this.getOneOrThrow({
+            id,
+            projectId,
+            entityManager,
+        })
 
         if (flowToUpdate.status !== newStatus) {
             const { scheduleOptions } = await hooks.preUpdateStatus({
                 flowToUpdate,
                 newStatus,
+                entityManager,
             })
 
             flowToUpdate.status = newStatus
             flowToUpdate.schedule = scheduleOptions
 
-            await flowRepo().save(flowToUpdate)
+            await flowRepo(entityManager).save(flowToUpdate)
         }
 
         return this.getOnePopulatedOrThrow({
             id,
             projectId,
+            entityManager,
         })
     },
 
@@ -384,6 +407,15 @@ export const flowService = {
             projectId,
         })
     },
+
+    async existsByProjectAndStatus(params: ExistsByProjectAndStatusParams): Promise<boolean> {
+        const { projectId, status, entityManager } = params
+
+        return flowRepo(entityManager).existsBy({
+            projectId,
+            status,
+        })
+    },
 }
 
 const lockFlowVersionIfNotLocked = async ({
@@ -437,6 +469,7 @@ type ListParams = {
 type GetOneParams = {
     id: FlowId
     projectId: ProjectId
+    entityManager?: EntityManager
 }
 
 type GetOnePopulatedParams = GetOneParams & {
@@ -467,6 +500,7 @@ type UpdateStatusParams = {
     id: FlowId
     projectId: ProjectId
     newStatus: FlowStatus
+    entityManager?: EntityManager
 }
 
 type UpdatePublishedVersionIdParams = {
@@ -486,5 +520,11 @@ type LockFlowVersionIfNotLockedParams = {
     flowVersion: FlowVersion
     userId: UserId
     projectId: ProjectId
+    entityManager: EntityManager
+}
+
+type ExistsByProjectAndStatusParams = {
+    projectId: ProjectId
+    status: FlowStatus
     entityManager: EntityManager
 }

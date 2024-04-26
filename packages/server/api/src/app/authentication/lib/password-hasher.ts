@@ -1,10 +1,10 @@
-import { assertNotNullOrUndefined } from '@activepieces/shared'
 import bcrypt from 'bcrypt'
 import { FirebaseScrypt } from 'firebase-scrypt'
-import { SystemProp, system } from 'server-shared'
+import { system, SystemProp } from '@activepieces/server-shared'
+import { assertNotNullOrUndefined } from '@activepieces/shared'
 
 const SALT_ROUNDS = 10
-const SCRYPT_SEPERATOR = '~'
+const SCRYPT_SEPARATOR = '~'
 
 export const passwordHasher = {
     hash: async (plainTextPassword: string): Promise<string> => {
@@ -21,9 +21,9 @@ export const passwordHasher = {
             return bcrypt.compare(plainTextPassword, hashedPassword)
         }
         if (isScrypt(hashedPassword)) {
-            const salt = hashedPassword.split(SCRYPT_SEPERATOR)[1]
+            const salt = hashedPassword.split(SCRYPT_SEPARATOR)[1]
             const rawHashedPassword = hashedPassword
-                .split(SCRYPT_SEPERATOR)[0]
+                .split(SCRYPT_SEPARATOR)[0]
                 .substring('$scrypt$'.length)
             return compareScrypt(plainTextPassword, salt, rawHashedPassword)
         }

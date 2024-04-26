@@ -1,29 +1,35 @@
 import {
+    FastifyPluginCallbackTypebox,
+    Type,
+} from '@fastify/type-provider-typebox'
+import { StatusCodes } from 'http-status-codes'
+import { accessTokenManager } from '../../authentication/lib/access-token-manager'
+import { platformService } from '../../platform/platform.service'
+import { platformProjectService } from './platform-project-service'
+import {
     ActivepiecesError,
     ErrorCode,
-    PlatformRole,
+    ListProjectRequestForUserQueryParams,
     PrincipalType,
     ProjectWithLimits,
     SeekPage,
 } from '@activepieces/shared'
-import {
-    FastifyPluginCallbackTypebox,
-    Type,
-} from '@fastify/type-provider-typebox'
-import { platformProjectService } from './platform-project-service'
-import { accessTokenManager } from '../../authentication/lib/access-token-manager'
-import { platformService } from '../../platform/platform.service'
-import { StatusCodes } from 'http-status-codes'
 
 export const usersProjectController: FastifyPluginCallbackTypebox = (
     fastify,
     _opts,
     done,
 ) => {
+
+    fastify.get('/:id', async (request) => {
+        return platformProjectService.getWithPlanAndUsageOrThrow(request.principal.projectId)
+    })
+
     fastify.get('/', ListProjectRequestForUser, async (request) => {
         return platformProjectService.getAll({
-            ownerId: request.principal.id,
-            platformId: request.query.platformId,
+            principal: request.principal,
+            cursorRequest: request.query.cursor ?? null,
+            limit: request.query.limit ?? 10,
         })
     })
 
@@ -32,7 +38,9 @@ export const usersProjectController: FastifyPluginCallbackTypebox = (
         SwitchTokenRequestForUser,
         async (request) => {
             const allProjects = await platformProjectService.getAll({
-                ownerId: request.principal.id,
+                principal: request.principal,
+                cursorRequest: null,
+                limit: 1000000,
             })
             const project = allProjects.data.find(
                 (project) => project.id === request.params.projectId,
@@ -55,10 +63,6 @@ export const usersProjectController: FastifyPluginCallbackTypebox = (
                     projectId: request.params.projectId,
                     platform: {
                         id: platform.id,
-                        role:
-                            platform.ownerId === request.principal.id
-                                ? PlatformRole.OWNER
-                                : PlatformRole.MEMBER,
                     },
                 }),
             }
@@ -87,8 +91,6 @@ const ListProjectRequestForUser = {
         response: {
             [StatusCodes.OK]: SeekPage(ProjectWithLimits),
         },
-        querystring: Type.Object({
-            platformId: Type.Optional(Type.String()),
-        }),
+        querystring: ListProjectRequestForUserQueryParams,
     },
 }

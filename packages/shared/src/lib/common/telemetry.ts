@@ -46,9 +46,13 @@ type FlowImported = {
     tab?: string
 }
 type FlowImportedUsingFile = {
- 
+
     location: 'inside dashboard' | 'inside the builder'
-   
+
+}
+
+type RequestTrialClicked = {
+    feature: string | null
 }
 
 type UpgradeClicked = {
@@ -59,11 +63,19 @@ type UpgradeClicked = {
 type UpgradePopup = {
     limitType?: 'team' | 'connections'
     limit: number
-    
+
 }
 
 type ReferralLinkCopied = {
     userId: UserId
+}
+
+type RewardButtonClicked = {
+    source: 'note' | 'rewards-button'
+}
+
+type RewardInstructionsClicked = {
+    type: 'share-template' | 'linkedin' | 'referral' | 'contribute-piece'
 }
 
 type Referral = {
@@ -92,6 +104,8 @@ type FormsViewed = {
 export enum TelemetryEventName {
     SIGNED_UP = 'signed.up',
     QUOTA_ALERT = 'quota.alert',
+    REQUEST_TRIAL_CLICKED = 'request.trial.clicked',
+    REQUEST_TRIAL_SUBMITTED = 'request.trial.submitted',
     UPGRADE_CLICKED = 'upgrade.clicked',
     OPENED_PRICING_FROM_DASHBOARD = 'pricing.viewed',
     UPGRADE_POPUP = 'upgrade.popup',
@@ -111,6 +125,8 @@ export enum TelemetryEventName {
     COPILOT_GENERATED_CODE = 'copilot.code.generated',
     FORMS_VIEWED = 'forms.viewed',
     FORMS_SUBMITTED = 'forms.submitted',
+    REWARDS_OPENED = 'rewards.opened',
+    REWARDS_INSTRUCTION_CLICKED = 'rewards.instructions.clicked',
 }
 
 type BaseTelemetryEvent<T, P> = {
@@ -121,6 +137,8 @@ type BaseTelemetryEvent<T, P> = {
 export type TelemetryEvent =
     | BaseTelemetryEvent<TelemetryEventName.SIGNED_UP, SignedUp>
     | BaseTelemetryEvent<TelemetryEventName.REFERRAL, Referral>
+    | BaseTelemetryEvent<TelemetryEventName.REQUEST_TRIAL_CLICKED, RequestTrialClicked>
+    | BaseTelemetryEvent<TelemetryEventName.REQUEST_TRIAL_SUBMITTED, Record<string, never>>
     | BaseTelemetryEvent<TelemetryEventName.UPGRADE_CLICKED, UpgradeClicked>
     | BaseTelemetryEvent<TelemetryEventName.UPGRADE_POPUP, UpgradePopup>
     | BaseTelemetryEvent<TelemetryEventName.FLOW_RUN_CREATED, RunCreated>
@@ -138,3 +156,5 @@ export type TelemetryEvent =
     | BaseTelemetryEvent<TelemetryEventName.COPILOT_GENERATED_CODE, CopilotGeneratedCode>
     | BaseTelemetryEvent<TelemetryEventName.FORMS_VIEWED, FormsViewed>
     | BaseTelemetryEvent<TelemetryEventName.FORMS_SUBMITTED, FormsViewed>
+    | BaseTelemetryEvent<TelemetryEventName.REWARDS_OPENED, RewardButtonClicked>
+    | BaseTelemetryEvent<TelemetryEventName.REWARDS_INSTRUCTION_CLICKED, RewardInstructionsClicked>

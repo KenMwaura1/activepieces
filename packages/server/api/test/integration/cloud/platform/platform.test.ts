@@ -1,17 +1,16 @@
-import { databaseConnection } from '../../../../src/app/database/database-connection'
-import { setupApp } from '../../../../src/app/app'
-import { generateMockToken } from '../../../helpers/auth'
-import { createMockUser, createMockPlatform } from '../../../helpers/mocks'
-import { StatusCodes } from 'http-status-codes'
 import { FastifyInstance } from 'fastify'
+import { StatusCodes } from 'http-status-codes'
+import { setupApp } from '../../../../src/app/app'
+import { databaseConnection } from '../../../../src/app/database/database-connection'
+import { generateMockToken } from '../../../helpers/auth'
+import { createMockPlatform, createMockUser, mockBasicSetup } from '../../../helpers/mocks'
 import {
+    apId,
+    FilteredPieceBehavior,
     LocalesEnum,
     PlatformRole,
+
     PrincipalType,
-    apId,
-} from '@activepieces/shared'
-import {
-    FilteredPieceBehavior,
     UpdatePlatformRequestBody,
 } from '@activepieces/shared'
 
@@ -31,17 +30,15 @@ describe('Platform API', () => {
     describe('update platform endpoint', () => {
         it('patches a platform by id', async () => {
             // arrange
-            const mockUser = createMockUser()
-            await databaseConnection.getRepository('user').save(mockUser)
-            const mockPlatform = createMockPlatform({
-                ownerId: mockUser.id,
-                embeddingEnabled: true,
+            const { mockOwner, mockPlatform } = await mockBasicSetup({
+                platform: {
+                    embeddingEnabled: false,
+                },
             })
-            await databaseConnection.getRepository('platform').save(mockPlatform)
             const testToken = await generateMockToken({
                 type: PrincipalType.USER,
-                id: mockUser.id,
-                platform: { id: mockPlatform.id, role: PlatformRole.OWNER },
+                id: mockOwner.id,
+                platform: { id: mockPlatform.id },
             })
             const requestBody: UpdatePlatformRequestBody = {
                 name: 'updated name',
@@ -59,8 +56,6 @@ describe('Platform API', () => {
                 smtpPassword: 'updated smtp password',
                 smtpSenderEmail: 'updated smtp sender email',
                 smtpUseSSL: true,
-                privacyPolicyUrl: 'updated privacy policy url',
-                termsOfServiceUrl: 'updated terms of service url',
                 cloudAuthEnabled: false,
                 emailAuthEnabled: false,
                 defaultLocale: LocalesEnum.ENGLISH,
@@ -88,7 +83,7 @@ describe('Platform API', () => {
             expect(responseBody.allowedAuthDomains).toEqual(
                 requestBody.allowedAuthDomains,
             )
-            expect(responseBody.ownerId).toBe(mockUser.id)
+            expect(responseBody.ownerId).toBe(mockOwner.id)
             expect(responseBody.emailAuthEnabled).toBe(requestBody.emailAuthEnabled)
             expect(responseBody.name).toBe('updated name')
             expect(responseBody.primaryColor).toBe('updated primary color')
@@ -107,12 +102,8 @@ describe('Platform API', () => {
             expect(responseBody.federatedAuthProviders).toStrictEqual({})
             expect(responseBody.smtpSenderEmail).toBe('updated smtp sender email')
             expect(responseBody.smtpUseSSL).toBe(true)
-            expect(responseBody.privacyPolicyUrl).toBe('updated privacy policy url')
-            expect(responseBody.termsOfServiceUrl).toBe(
-                'updated terms of service url',
-            )
             expect(responseBody.cloudAuthEnabled).toBe(false)
-            expect(responseBody.embeddingEnabled).toBe(true)
+            expect(responseBody.embeddingEnabled).toBe(false)
             expect(responseBody.defaultLocale).toBe(LocalesEnum.ENGLISH)
         })
 
@@ -152,7 +143,6 @@ describe('Platform API', () => {
                 type: PrincipalType.USER,
                 platform: {
                     id: randomPlatformId,
-                    role: PlatformRole.OWNER,
                 },
             })
 
@@ -169,7 +159,7 @@ describe('Platform API', () => {
             })
 
             // assert
-            expect(response?.statusCode).toBe(StatusCodes.NOT_FOUND)
+            expect(response?.statusCode).toBe(StatusCodes.FORBIDDEN)
         })
     })
 
@@ -184,12 +174,16 @@ describe('Platform API', () => {
             const mockPlatform = createMockPlatform({ ownerId: mockOwnerUser.id })
             await databaseConnection.getRepository('platform').save(mockPlatform)
 
+            await databaseConnection.getRepository('user').update(mockOwnerUser.id, {
+                platformId: mockPlatform.id,
+                platformRole: PlatformRole.ADMIN,
+            })
+
             const mockToken = await generateMockToken({
                 type: PrincipalType.USER,
                 id: mockOwnerUser.id,
                 platform: {
                     id: mockPlatform.id,
-                    role: PlatformRole.OWNER,
                 },
             })
 
@@ -220,18 +214,18 @@ describe('Platform API', () => {
             const mockMemberUserId = apId()
             const mockPlatformId = apId()
 
-            const mockOwnerUser = createMockUser({ platformId: mockPlatformId })
+            const mockOwnerUser = createMockUser({ platformId: mockPlatformId, platformRole: PlatformRole.MEMBER })
             await databaseConnection.getRepository('user').save(mockOwnerUser)
 
             const mockPlatform = createMockPlatform({ ownerId: mockOwnerUser.id })
             await databaseConnection.getRepository('platform').save(mockPlatform)
+
 
             const mockToken = await generateMockToken({
                 type: PrincipalType.USER,
                 id: mockMemberUserId,
                 platform: {
                     id: mockPlatform.id,
-                    role: PlatformRole.MEMBER,
                 },
             })
 
@@ -263,7 +257,6 @@ describe('Platform API', () => {
                 type: PrincipalType.USER,
                 platform: {
                     id: mockPlatformId,
-                    role: PlatformRole.OWNER,
                 },
             })
 
@@ -291,7 +284,6 @@ describe('Platform API', () => {
                 type: PrincipalType.USER,
                 platform: {
                     id: randomPlatformId,
-                    role: PlatformRole.OWNER,
                 },
             })
 

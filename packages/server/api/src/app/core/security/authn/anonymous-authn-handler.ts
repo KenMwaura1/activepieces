@@ -1,11 +1,10 @@
 import { FastifyRequest } from 'fastify'
 import { BaseSecurityHandler } from '../security-handler'
 import {
-    PlatformRole,
-    Principal,
-    PrincipalType,
     apId,
     isNil,
+    Principal,
+    PrincipalType,
 } from '@activepieces/shared'
 
 export class AnonymousAuthnHandler extends BaseSecurityHandler {
@@ -23,7 +22,6 @@ export class AnonymousAuthnHandler extends BaseSecurityHandler {
                 projectId: `ANONYMOUS_${apId()}`,
                 platform: {
                     id: `ANONYMOUS_${apId()}`,
-                    role: PlatformRole.MEMBER,
                 },
             }
         }

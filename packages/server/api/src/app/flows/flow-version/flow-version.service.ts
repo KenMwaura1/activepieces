@@ -1,11 +1,24 @@
 import { TSchema, Type } from '@sinclair/typebox'
 import { TypeCompiler } from '@sinclair/typebox/compiler'
+import dayjs from 'dayjs'
+import { EntityManager } from 'typeorm'
+import { repoFactory } from '../../core/db/repo-factory'
+import { buildPaginator } from '../../helper/pagination/build-paginator'
+import { paginationHelper } from '../../helper/pagination/pagination-utils'
+import { pieceMetadataService } from '../../pieces/piece-metadata-service'
+import { stepFileService } from '../step-file/step-file.service'
+import { FlowVersionEntity } from './flow-version-entity'
+import { flowVersionSideEffects } from './flow-version-side-effects'
 import { PiecePropertyMap, PropertyType } from '@activepieces/pieces-framework'
+import { logger } from '@activepieces/server-shared'
 import {
     ActionType,
+    ActivepiecesError,
     apId,
     BranchActionSettingsWithValidation,
     Cursor,
+    DEFAULT_SAMPLE_DATA_SETTINGS,
+    ErrorCode,
     flowHelper,
     FlowId,
     FlowOperationRequest,
@@ -14,27 +27,11 @@ import {
     FlowVersionId,
     FlowVersionState,
     ImportFlowRequest,
+    isNil,
     LoopOnItemsActionSettingsWithValidation,
     PieceActionSettings,
     PieceTriggerSettings,
-    ProjectId,
-    TriggerType,
-    SeekPage,
-    UserId,
-} from '@activepieces/shared'
-import { EntityManager } from 'typeorm'
-import { ActivepiecesError, ErrorCode } from '@activepieces/shared'
-import { repoFactory } from '../../core/db/repo-factory'
-import { FlowVersionEntity } from './flow-version-entity'
-import { flowVersionSideEffects } from './flow-version-side-effects'
-import { DEFAULT_SAMPLE_DATA_SETTINGS } from '@activepieces/shared'
-import { isNil } from '@activepieces/shared'
-import { pieceMetadataService } from '../../pieces/piece-metadata-service'
-import dayjs from 'dayjs'
-import { logger } from 'server-shared'
-import { stepFileService } from '../step-file/step-file.service'
-import { buildPaginator } from '../../helper/pagination/build-paginator'
-import { paginationHelper } from '../../helper/pagination/pagination-utils'
+    ProjectId, SeekPage, TriggerType, UserId } from '@activepieces/shared'
 
 const branchSettingsValidator = TypeCompiler.Compile(
     BranchActionSettingsWithValidation,
@@ -84,7 +81,7 @@ export const flowVersionService = {
     }: ApplyOperationParams): Promise<FlowVersion> {
         let operations: FlowOperationRequest[] = []
         let mutatedFlowVersion: FlowVersion = flowVersion
-        
+
         switch (userOperation.type) {
             case FlowOperationType.USE_AS_DRAFT: {
                 const previousVersion = await flowVersionService.getFlowVersionOrThrow({
@@ -219,8 +216,9 @@ export const flowVersionService = {
         flowId,
         versionId,
         removeSecrets = false,
+        entityManager,
     }: GetFlowVersionOrThrowParams): Promise<FlowVersion> {
-        let flowVersion: FlowVersion | null = await flowVersionRepo().findOne({
+        const flowVersion: FlowVersion | null = await flowVersionRepo(entityManager).findOne({
             where: {
                 flowId,
                 id: versionId,
@@ -242,11 +240,9 @@ export const flowVersionService = {
             })
         }
 
-        if (removeSecrets) {
-            flowVersion = await removeSecretsFromFlow(flowVersion)
-        }
-
-        return flowVersion
+        return removeSecrets
+            ? removeSecretsFromFlow(flowVersion)
+            : flowVersion
     },
     async createEmptyVersion(
         flowId: FlowId,
@@ -295,9 +291,9 @@ async function removeSecretsFromFlow(
     )
     const steps = flowHelper.getAllSteps(flowVersionWithArtifacts.trigger)
     for (const step of steps) {
-    /*
-        Remove Sample Data & connections
-        */
+        /*
+            Remove Sample Data & connections
+            */
         step.settings.inputUiInfo = DEFAULT_SAMPLE_DATA_SETTINGS
         step.settings.input = replaceConnections(step.settings.input)
     }
@@ -414,9 +410,9 @@ async function prepareRequest(
                     )
                     if (
                         previousStep !== undefined &&
-            previousStep.type === ActionType.PIECE &&
-            clonedRequest.request.settings.pieceName !==
-              previousStep.settings.pieceName
+                        previousStep.type === ActionType.PIECE &&
+                        clonedRequest.request.settings.pieceName !==
+                        previousStep.settings.pieceName
                     ) {
                         await stepFileService.deleteAll({
                             projectId,
@@ -438,7 +434,7 @@ async function prepareRequest(
             )
             if (
                 previousStep !== undefined &&
-        previousStep.type === ActionType.PIECE
+                previousStep.type === ActionType.PIECE
             ) {
                 await stepFileService.deleteAll({
                     projectId,
@@ -477,9 +473,9 @@ async function validateAction({
 }): Promise<boolean> {
     if (
         isNil(settings.pieceName) ||
-    isNil(settings.pieceVersion) ||
-    isNil(settings.actionName) ||
-    isNil(settings.input)
+        isNil(settings.pieceVersion) ||
+        isNil(settings.actionName) ||
+        isNil(settings.input)
     ) {
         return false
     }
@@ -513,9 +509,9 @@ async function validateTrigger({
 }): Promise<boolean> {
     if (
         isNil(settings.pieceName) ||
-    isNil(settings.pieceVersion) ||
-    isNil(settings.triggerName) ||
-    isNil(settings.input)
+        isNil(settings.pieceVersion) ||
+        isNil(settings.triggerName) ||
+        isNil(settings.input)
     ) {
         return false
     }
@@ -560,7 +556,7 @@ function buildSchema(props: PiecePropertyMap): TSchema {
         switch (property.type) {
             case PropertyType.MARKDOWN:
                 propsSchema[name] = Type.Optional(
-                    Type.Union([Type.Null(), Type.Undefined(), Type.Never()]),
+                    Type.Union([Type.Null(), Type.Undefined(), Type.Never(), Type.Unknown()]),
                 )
                 break
             case PropertyType.DATE_TIME:
@@ -639,6 +635,7 @@ type GetFlowVersionOrThrowParams = {
     flowId: FlowId
     versionId: FlowVersionId | undefined
     removeSecrets?: boolean
+    entityManager?: EntityManager
 }
 
 type NewFlowVersion = Omit<FlowVersion, 'created' | 'updated'>

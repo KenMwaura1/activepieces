@@ -1,20 +1,18 @@
+import { FastifyPluginAsyncTypebox } from '@fastify/type-provider-typebox'
+import { Static, Type } from '@sinclair/typebox'
+import { StatusCodes } from 'http-status-codes'
+import { platformMustBeOwnedByCurrentUser } from '../authentication/ee-authorization'
 import { flowTemplateService } from './flow-template.service'
+import { CreateFlowTemplateRequest } from '@activepieces/ee-shared'
+import { system, SystemProp } from '@activepieces/server-shared'
 import {
-    ListFlowTemplatesRequest,
+    ActivepiecesError,
     ALL_PRINCIPAL_TYPES,
+    ErrorCode,
+    ListFlowTemplatesRequest,
     PrincipalType,
     TemplateType,
-    ActivepiecesError,
-    ErrorCode,
-    assertNotNullOrUndefined,
-    Principal,
 } from '@activepieces/shared'
-import { Static, Type } from '@sinclair/typebox'
-import { FastifyPluginAsyncTypebox } from '@fastify/type-provider-typebox'
-import { CreateFlowTemplateRequest } from '@activepieces/ee-shared'
-import { platformService } from '../../platform/platform.service'
-import { StatusCodes } from 'http-status-codes'
-import { SystemProp, system } from 'server-shared'
 
 export const platformFlowTemplateModule: FastifyPluginAsyncTypebox = async (
     app,
@@ -55,7 +53,7 @@ const flowTemplateController: FastifyPluginAsyncTypebox = async (fastify) => {
         },
         async (request) => {
             const platformId =
-        request.principal.type === PrincipalType.UNKNOWN ? system.getOrThrow(SystemProp.CLOUD_PLATFORM_ID) : request.principal.platform.id
+                request.principal.type === PrincipalType.UNKNOWN ? system.getOrThrow(SystemProp.CLOUD_PLATFORM_ID) : request.principal.platform.id
             return flowTemplateService.list(platformId, request.query)
         },
     )
@@ -70,13 +68,10 @@ const flowTemplateController: FastifyPluginAsyncTypebox = async (fastify) => {
                 body: CreateFlowTemplateRequest,
             },
         },
-        async (request) => {
+        async (request, reply) => {
             const { type } = request.body
             if (type === TemplateType.PLATFORM) {
-                await assertUserIsPlatformOwner({
-                    platformId: request.principal.platform.id,
-                    userId: request.principal.id,
-                })
+                await platformMustBeOwnedByCurrentUser.call(fastify, request, reply)
             }
             return flowTemplateService.upsert(
                 request.principal.platform.id,
@@ -96,11 +91,20 @@ const flowTemplateController: FastifyPluginAsyncTypebox = async (fastify) => {
             },
         },
         async (request, reply) => {
-            await assertUserCanDeleteTemplate({
-                templateId: request.params.id,
-                userId: request.principal.id,
-                principal: request.principal,
-            })
+            const template = await flowTemplateService.getOrThrow(request.params.id)
+            switch (template.type) {
+                case TemplateType.PLATFORM:
+                    await platformMustBeOwnedByCurrentUser.call(fastify, request, reply)
+                    break
+                case TemplateType.PROJECT:
+                    if (template.projectId !== request.principal.projectId) {
+                        throw new ActivepiecesError({
+                            code: ErrorCode.AUTHORIZATION,
+                            params: {},
+                        })
+                    }
+                    break
+            }
             await flowTemplateService.delete({
                 id: request.params.id,
             })
@@ -109,50 +113,3 @@ const flowTemplateController: FastifyPluginAsyncTypebox = async (fastify) => {
     )
 }
 
-async function assertUserCanDeleteTemplate({
-    templateId,
-    userId,
-    principal,
-}: {
-    templateId: string
-    userId: string
-    principal: Principal
-}): Promise<void> {
-    const template = await flowTemplateService.getOrThrow(templateId)
-    switch (template.type) {
-        case TemplateType.PLATFORM:
-            await assertUserIsPlatformOwner({
-                platformId: template.platformId,
-                userId,
-            })
-            break
-        case TemplateType.PROJECT:
-            if (template.projectId !== principal.projectId) {
-                throw new ActivepiecesError({
-                    code: ErrorCode.AUTHORIZATION,
-                    params: {},
-                })
-            }
-            break
-    }
-}
-
-async function assertUserIsPlatformOwner({
-    platformId,
-    userId,
-}: {
-    platformId?: string
-    userId: string
-}): Promise<void> {
-    assertNotNullOrUndefined(platformId, 'platformId')
-    const userOwner = await platformService.checkUserIsOwner({
-        platformId,
-        userId,
-    })
-    if (!userOwner) {
-        throw new ActivepiecesError({
-            code: ErrorCode.AUTHORIZATION,
-            params: {},
-        })
-    }
-}

@@ -779,7 +779,8 @@
       "avatar_url": "https://avatars.githubusercontent.com/u/51771021?v=4",
       "profile": "http://dennisrongo.com",
       "contributions": [
-        "bug"
+        "bug",
+        "plugin"
       ]
     },
     {
@@ -872,6 +873,115 @@
       "profile": "https://github.com/AliasKingsWorth",
       "contributions": [
         "doc"
+      ]
+    },
+    {
+      "login": "vbarrier",
+      "name": "Vincent Barrier",
+      "avatar_url": "https://avatars.githubusercontent.com/u/446808?v=4",
+      "profile": "https://github.com/vbarrier",
+      "contributions": [
+        "plugin"
+      ]
+    },
+    {
+      "login": "jmgb27",
+      "name": "John",
+      "avatar_url": "https://avatars.githubusercontent.com/u/65794951?v=4",
+      "profile": "http://johnmark.dev",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "jdevalk",
+      "name": "Joost de Valk",
+      "avatar_url": "https://avatars.githubusercontent.com/u/487629?v=4",
+      "profile": "https://joost.blog/",
+      "contributions": [
+        "plugin"
+      ]
+    },
+    {
+      "login": "nyamkamunhjin",
+      "name": "MJ",
+      "avatar_url": "https://avatars.githubusercontent.com/u/44439626?v=4",
+      "profile": "https://www.linkedin.com/in/nyamkamunhjin/",
+      "contributions": [
+        "plugin"
+      ]
+    },
+    {
+      "login": "shravankshenoy",
+      "name": "ShravanShenoy",
+      "avatar_url": "https://avatars.githubusercontent.com/u/29670290?v=4",
+      "profile": "https://github.com/shravankshenoy",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "jonkristian",
+      "name": "Jon Kristian",
+      "avatar_url": "https://avatars.githubusercontent.com/u/13219?v=4",
+      "profile": "http://jonkristian.no",
+      "contributions": [
+        "doc"
+      ]
+    },
+    {
+      "login": "cr0fters",
+      "name": "cr0fters",
+      "avatar_url": "https://avatars.githubusercontent.com/u/1754858?v=4",
+      "profile": "https://github.com/cr0fters",
+      "contributions": [
+        "bug"
+      ]
+    },
+    {
+      "login": "bimsina",
+      "name": "Bibek Timsina",
+      "avatar_url": "https://avatars.githubusercontent.com/u/29589003?v=4",
+      "profile": "https://bibek-timsina.com.np/",
+      "contributions": [
+        "bug"
+      ]
+    },
+    {
+      "login": "szepeviktor",
+      "name": "Viktor Szépe",
+      "avatar_url": "https://avatars.githubusercontent.com/u/952007?v=4",
+      "profile": "https://github.com/szepeviktor/debian-server-tools/blob/master/CV.md",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "rendyt1",
+      "name": "Rendy Tan",
+      "avatar_url": "https://avatars.githubusercontent.com/u/38492810?v=4",
+      "profile": "https://github.com/rendyt1",
+      "contributions": [
+        "doc",
+        "plugin"
+      ]
+    },
+    {
+      "login": "islamaf",
+      "name": "Islam Abdelfattah",
+      "avatar_url": "https://avatars.githubusercontent.com/u/44944648?v=4",
+      "profile": "http://islamaf.github.io",
+      "contributions": [
+        "bug"
+      ]
+    },
+    {
+      "login": "uniqueeest",
+      "name": "Yoonjae Choi",
+      "avatar_url": "https://avatars.githubusercontent.com/u/123538138?v=4",
+      "profile": "https://github.com/uniqueeest",
+      "contributions": [
+        "code"
       ]
     }
   ],

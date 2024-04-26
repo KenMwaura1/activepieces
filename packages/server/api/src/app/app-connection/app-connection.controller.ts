@@ -1,22 +1,24 @@
 import {
+    FastifyPluginCallbackTypebox,
+    Type,
+} from '@fastify/type-provider-typebox'
+import { StatusCodes } from 'http-status-codes'
+import { eventsHooks } from '../helper/application-events'
+import { appConnectionService } from './app-connection-service/app-connection-service'
+import { ApplicationEventName } from '@activepieces/ee-shared'
+import {
     ApId,
     AppConnection,
     AppConnectionWithoutSensitiveData,
     ListAppConnectionsRequestQuery,
     Permission,
     PrincipalType,
-    SERVICE_KEY_SECURITY_OPENAPI,
     SeekPage,
+    SERVICE_KEY_SECURITY_OPENAPI,
     UpsertAppConnectionRequestBody,
+    ValidateConnectionNameRequestBody,
+    ValidateConnectionNameResponse,
 } from '@activepieces/shared'
-import {
-    FastifyPluginCallbackTypebox,
-    Type,
-} from '@fastify/type-provider-typebox'
-import { StatusCodes } from 'http-status-codes'
-import { appConnectionService } from './app-connection-service/app-connection-service'
-import { eventsHooks } from '../helper/application-events'
-import { ApplicationEventName } from '@activepieces/ee-shared'
 
 export const appConnectionController: FastifyPluginCallbackTypebox = (
     app,
@@ -42,25 +44,39 @@ export const appConnectionController: FastifyPluginCallbackTypebox = (
         '/',
         ListAppConnectionsRequest,
         async (request): Promise<SeekPage<AppConnectionWithoutSensitiveData>> => {
-            const { pieceName, cursor, limit } = request.query
+            const { name, pieceName, cursor, limit } = request.query
 
             const appConnections = await appConnectionService.list({
-                projectId: request.principal.projectId,
                 pieceName,
+                name,
+                projectId: request.principal.projectId,
                 cursorRequest: cursor ?? null,
                 limit: limit ?? DEFAULT_PAGE_SIZE,
             })
 
             const appConnectionsWithoutSensitiveData: SeekPage<AppConnectionWithoutSensitiveData> =
-        {
-            ...appConnections,
-            data: appConnections.data.map(removeSensitiveData),
-        }
+      {
+          ...appConnections,
+          data: appConnections.data.map(removeSensitiveData),
+      }
 
             return appConnectionsWithoutSensitiveData
         },
     )
-
+    app.post(
+        '/validate-connection-name',
+        ValidateConnectionNameRequest,
+        async (request, reply): Promise<ValidateConnectionNameResponse> => {
+            const result = await appConnectionService.validateConnectionName({
+                projectId: request.principal.projectId,
+                connectionName: request.body.connectionName,
+            })
+            if (result.error) {
+                return reply.status(StatusCodes.BAD_REQUEST).send(result)
+            }
+            return result
+        },
+    ),
     app.delete(
         '/:id',
         DeleteAppConnectionRequest,
@@ -122,6 +138,23 @@ const ListAppConnectionsRequest = {
         description: 'List app connections',
         response: {
             [StatusCodes.OK]: SeekPage(AppConnectionWithoutSensitiveData),
+        },
+    },
+}
+
+const ValidateConnectionNameRequest = {
+    config: {
+        allowedPrincipals: [PrincipalType.USER, PrincipalType.SERVICE],
+        permission: Permission.READ_APP_CONNECTION,
+    },
+    schema: {
+        tags: ['app-connections'],
+        security: [SERVICE_KEY_SECURITY_OPENAPI],
+        body: ValidateConnectionNameRequestBody,
+        description: 'Validate app connection name',
+        response: {
+            [StatusCodes.OK]: ValidateConnectionNameResponse,
+            [StatusCodes.BAD_REQUEST]: ValidateConnectionNameResponse,
         },
     },
 }

@@ -43,7 +43,7 @@ export class TestPieceWebhookTriggerComponent extends TestStepCoreComponent {
   selectedDataControl: FormControl<unknown> = new FormControl();
   saveNewSelectedData$: Observable<void>;
   initialHistoricalData$: Observable<TriggerHistoricalData[]>;
-  initaillySelectedSampleData$: Observable<unknown>;
+  initiallySelectedSampleData$: Observable<unknown>;
   stopSelectedDataControlListener$ = new Subject<boolean>();
   cancelTesting$ = new Subject<boolean>();
   saveAfterNewDataIsLoaded$: Observable<void>;
@@ -110,7 +110,7 @@ export class TestPieceWebhookTriggerComponent extends TestStepCoreComponent {
         })
       );
 
-    this.initaillySelectedSampleData$ = this.store
+    this.initiallySelectedSampleData$ = this.store
       .select(BuilderSelectors.selectStepTestSampleData)
       .pipe(
         tap((res) => {
@@ -243,8 +243,13 @@ export class TestPieceWebhookTriggerComponent extends TestStepCoreComponent {
               )
               .pipe(
                 map((metaData) => {
+                  if (
+                    res.settings.pieceName === '@activepieces/piece-webhook'
+                  ) {
+                    return `Call your webhook url.`;
+                  }
                   const trigger = metaData.triggers[res.settings.triggerName];
-                  return `Please go to ${metaData.displayName} and trigger ${trigger.displayName}`;
+                  return `Please go to ${metaData.displayName} and trigger ${trigger.displayName}.`;
                 })
               );
           }

@@ -1,12 +1,12 @@
+import { pieceMetadataService } from '../../../pieces/piece-metadata-service'
+import { TriggerBase } from '@activepieces/pieces-framework'
 import {
     ActivepiecesError,
     ErrorCode,
+    isNil,
     PieceTrigger,
     ProjectId,
-    isNil,
 } from '@activepieces/shared'
-import { pieceMetadataService } from '../../../pieces/piece-metadata-service'
-import { TriggerBase } from '@activepieces/pieces-framework'
 
 export async function getPieceTrigger({
     trigger,
@@ -21,15 +21,6 @@ export async function getPieceTrigger({
         version: trigger.settings.pieceVersion,
     })
 
-    if (isNil(piece)) {
-        throw new ActivepiecesError({
-            code: ErrorCode.PIECE_NOT_FOUND,
-            params: {
-                pieceName: trigger.settings.pieceName,
-                pieceVersion: trigger.settings.pieceVersion,
-            },
-        })
-    }
     const pieceTrigger = piece.triggers[trigger.settings.triggerName]
     if (isNil(pieceTrigger)) {
         throw new ActivepiecesError({

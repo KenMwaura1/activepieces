@@ -1,22 +1,27 @@
+import { fileService } from '../../file/file.service'
+import { engineHelper } from '../../helper/engine-helper'
+import { getEdition } from '../../helper/secret-helper'
+import { pieceMetadataService } from '../piece-metadata-service'
+import { PieceMetadata, PieceMetadataModel } from '@activepieces/pieces-framework'
+import { ExecutionMode, logger, system, SystemProp } from '@activepieces/server-shared'
 import {
     ActivepiecesError,
+    AddPieceRequestBody,
     ApEdition,
     EngineResponseStatus,
     ErrorCode,
+    ExecuteExtractPieceMetadata,
+    FileCompression,
+    FileId,
+    FileType,
+    isNil,
     PackageType,
     PiecePackage,
     PieceScope,
     PieceType,
-    AddPieceRequestBody,
+    PlatformId,
+    ProjectId,
 } from '@activepieces/shared'
-import { engineHelper } from '../../helper/engine-helper'
-import { pieceMetadataService } from '../piece-metadata-service'
-import { PieceMetadataModel } from '../piece-metadata-entity'
-import { logger } from 'server-shared'
-import { pieceServiceHooks } from './piece-service-hooks'
-import { ExecutionMode, SystemProp, system } from 'server-shared'
-import { getEdition } from '../../helper/secret-helper'
-import { PieceMetadata } from '@activepieces/pieces-framework'
 
 export const pieceService = {
     async installPiece(
@@ -28,13 +33,14 @@ export const pieceService = {
         try {
             const piecePackage = await getPiecePackage(platformId, projectId, params)
             const pieceInformation = await extractPieceInformation(piecePackage)
+            const archiveId = piecePackage.packageType === PackageType.ARCHIVE ? piecePackage.archiveId : undefined
             const savedPiece = await pieceMetadataService.create({
                 pieceMetadata: {
                     ...pieceInformation,
                     minimumSupportedRelease:
-            pieceInformation.minimumSupportedRelease ?? '0.0.0',
+                        pieceInformation.minimumSupportedRelease ?? '0.0.0',
                     maximumSupportedRelease:
-            pieceInformation.maximumSupportedRelease ?? '999.999.999',
+                        pieceInformation.maximumSupportedRelease ?? '999.999.999',
                     name: pieceInformation.name,
                     version: pieceInformation.version,
                 },
@@ -42,10 +48,7 @@ export const pieceService = {
                 packageType: params.packageType,
                 platformId,
                 pieceType: PieceType.CUSTOM,
-                archiveId:
-          piecePackage.packageType === PackageType.ARCHIVE
-              ? piecePackage.archiveId
-              : undefined,
+                archiveId,
             })
 
             return savedPiece
@@ -72,13 +75,13 @@ const assertInstallProjectEnabled = (scope: PieceScope): void => {
         const edition = getEdition()
         if (
             sandboxMode === ExecutionMode.UNSANDBOXED &&
-      [ApEdition.ENTERPRISE, ApEdition.CLOUD].includes(edition)
+            [ApEdition.ENTERPRISE, ApEdition.CLOUD].includes(edition)
         ) {
             throw new ActivepiecesError({
                 code: ErrorCode.AUTHORIZATION,
                 params: {
                     message:
-            'Project pieces are not supported in this edition with unsandboxed execution mode',
+                        'Project pieces are not supported in this edition with unsandboxed execution mode',
                 },
             })
         }
@@ -92,32 +95,57 @@ const getPiecePackage = async (
 ): Promise<PiecePackage> => {
     switch (params.packageType) {
         case PackageType.ARCHIVE: {
-            return pieceServiceHooks.get().savePieceArchivePackage({
-                archive: params.pieceArchive as Buffer,
-                packageType: params.packageType,
-                pieceName: params.pieceName,
-                pieceVersion: params.pieceVersion,
+            const archiveId = await saveArchive({
                 projectId: params.scope === PieceScope.PROJECT ? projectId : undefined,
                 platformId,
+                archive: params.pieceArchive as Buffer,
             })
+            return {
+                ...params,
+                pieceType: PieceType.CUSTOM,
+                archive: params.pieceArchive as Buffer,
+                archiveId,
+                packageType: params.packageType,
+            }
         }
 
         case PackageType.REGISTRY: {
             return {
                 ...params,
                 pieceType: PieceType.CUSTOM,
+                directoryPath: undefined,
             }
         }
     }
 }
 
-const extractPieceInformation = async (
-    piecePackage: PiecePackage,
-): Promise<PieceMetadata> => {
-    const engineResponse = await engineHelper.extractPieceMetadata(piecePackage)
+const extractPieceInformation = async (request: ExecuteExtractPieceMetadata): Promise<PieceMetadata> => {
+    const engineResponse = await engineHelper.extractPieceMetadata(request)
 
     if (engineResponse.status !== EngineResponseStatus.OK) {
         throw new Error(engineResponse.standardError)
     }
     return engineResponse.result
+}
+
+const saveArchive = async (
+    params: GetPieceArchivePackageParams,
+): Promise<FileId> => {
+    const { projectId, platformId, archive } = params
+
+    const archiveFile = await fileService.save({
+        projectId: isNil(platformId) ? projectId : undefined,
+        platformId,
+        data: archive,
+        type: FileType.PACKAGE_ARCHIVE,
+        compression: FileCompression.NONE,
+    })
+
+    return archiveFile.id
+}
+
+type GetPieceArchivePackageParams = {
+    archive: Buffer
+    projectId?: ProjectId
+    platformId?: PlatformId
 }

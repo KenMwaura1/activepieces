@@ -1,5 +1,5 @@
-import { logger } from 'server-shared'
 import { MigrationInterface, QueryRunner } from 'typeorm'
+import { logger } from '@activepieces/server-shared'
 
 const FLOW_VERSION_TABLE = 'flow_version'
 
@@ -16,9 +16,6 @@ export class MigrateWebhook1709581196563 implements MigrationInterface {
             const [flowVersion] = await queryRunner.query('SELECT * FROM flow_version WHERE id = $1', [id])
             const step = parseJson(flowVersion.trigger)
             const isString = typeof flowVersion.trigger === 'string'
-            if (count % 1000 === 0) {
-                logger.info('MigrateWebhook1709581196563, flows migrated ' + count)
-            }
             if (step.type === 'WEBHOOK') {
                 step.type = 'PIECE_TRIGGER'
                 step.settings = {
@@ -38,7 +35,7 @@ export class MigrateWebhook1709581196563 implements MigrationInterface {
                 )
             }
         }
-        logger.info('MigrateWebhook1709581196563, finished flows ' + count)
+        logger.info('MigrateWebhook1709581196563, migrated flows ' + count)
     }
 
     public async down(queryRunner: QueryRunner): Promise<void> {

@@ -4,7 +4,7 @@ import { FormControl } from '@angular/forms';
 import { jsonEditorOptionsMonaco } from '../../../utils/consts';
 export type JsonViewDialogData = {
   title: string;
-  content: unknown;
+  content: string;
 };
 
 @Component({
@@ -14,12 +14,10 @@ export type JsonViewDialogData = {
 })
 export class JsonViewDialogComponent {
   data: JsonViewDialogData;
-  jsonEditorOptionsMonaco = jsonEditorOptionsMonaco;
+  readonly jsonEditorOptionsMonaco = jsonEditorOptionsMonaco;
   jsonFormControl: FormControl<unknown>;
   constructor(@Inject(MAT_DIALOG_DATA) dialogData: JsonViewDialogData) {
     this.data = dialogData;
-    this.jsonFormControl = new FormControl(
-      JSON.stringify(this.data.content, null, 2)
-    );
+    this.jsonFormControl = new FormControl(dialogData.content);
   }
 }

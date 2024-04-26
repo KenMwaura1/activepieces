@@ -1,18 +1,18 @@
 import { FastifyPluginAsyncTypebox } from '@fastify/type-provider-typebox'
+import { Static, Type } from '@sinclair/typebox'
+import { FastifyRequest } from 'fastify'
+import { StatusCodes } from 'http-status-codes'
+import { entitiesMustBeOwnedByCurrentProject } from '../../authentication/authorization'
+import { eventsHooks } from '../../helper/application-events'
+import { flowFolderService as folderService } from './folder.service'
+import { ApplicationEventName } from '@activepieces/ee-shared'
 import {
     CreateOrRenameFolderRequest,
     FolderId,
     ListFolderRequest,
 } from '@activepieces/shared'
-import { FastifyRequest } from 'fastify'
-import { flowFolderService as folderService } from './folder.service'
-import { StatusCodes } from 'http-status-codes'
-import { Static, Type } from '@sinclair/typebox'
-import { entitiesMustBeOwnedByCurrentProject } from '../../authentication/authorization'
-import { eventsHooks } from '../../helper/application-events'
-import { ApplicationEventName } from '@activepieces/ee-shared'
 
-const DEFUALT_PAGE_SIZE = 10
+const DEFAULT_PAGE_SIZE = 10
 
 const FolderIdParam = Type.Object({
     folderId: Type.String(),
@@ -30,7 +30,7 @@ export const folderController: FastifyPluginAsyncTypebox = async (fastify) => {
             },
         },
         async (request) => {
-            const createdFolder = await folderService.create({
+            const createdFolder = await folderService.upsert({
                 projectId: request.principal.projectId,
                 request: request.body,
             })
@@ -95,7 +95,7 @@ export const folderController: FastifyPluginAsyncTypebox = async (fastify) => {
             return folderService.list({
                 projectId: request.principal.projectId,
                 cursorRequest: request.query.cursor ?? null,
-                limit: request.query.limit ?? DEFUALT_PAGE_SIZE,
+                limit: request.query.limit ?? DEFAULT_PAGE_SIZE,
             })
         },
     )

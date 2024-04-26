@@ -1,8 +1,9 @@
-import { Component } from '@angular/core';
+import { Component, ViewChild } from '@angular/core';
 import {
   AuthenticationService,
   EmbeddingService,
   showPlatformDashboard$,
+  ContactSalesService,
 } from '@activepieces/ui/common';
 import {
   DashboardService,
@@ -13,6 +14,7 @@ import { Observable, combineLatest, map } from 'rxjs';
 import { ApFlagId, Project } from '@activepieces/shared';
 
 import { Router } from '@angular/router';
+import { MatSidenav } from '@angular/material/sidenav';
 
 @Component({
   templateUrl: './dashboard-container.component.html',
@@ -27,14 +29,21 @@ export class DashboardContainerComponent {
   currentProject$: Observable<Project>;
   showPoweredByAp$: Observable<boolean>;
   showPlatform$: Observable<boolean>;
-  showAdminConsoleLock$: Observable<boolean>;
+  @ViewChild('contactSalesSlideout') contactSalesSlideout: MatSidenav;
+  contactSalesState$: Observable<boolean>;
+  isVersionMatch$?: Observable<boolean>;
+  newUpdateMessage = $localize`New update available`;
+
   constructor(
     private flagService: FlagService,
     private embeddedService: EmbeddingService,
     private dashboardService: DashboardService,
     private authenticationService: AuthenticationService,
-    public router: Router
+    public router: Router,
+    private contactSalesService: ContactSalesService
   ) {
+    this.contactSalesState$ =
+      this.contactSalesService.contactSalesState.asObservable();
     this.showPlatform$ = showPlatformDashboard$(
       this.authenticationService,
       this.flagService
@@ -55,9 +64,8 @@ export class DashboardContainerComponent {
       .getState$()
       .pipe(map((state) => !state.hideSideNav));
     this.isInPlatformRoute$ = this.dashboardService.getIsInPlatformRoute();
-    this.showAdminConsoleLock$ = this.flagService.isFlagEnabled(
-      ApFlagId.SHOW_PLATFORM_DEMO
-    );
+
+    this.isVersionMatch$ = this.flagService.isVersionMatch();
   }
 
   navigateToAdminConsole() {
@@ -66,5 +74,9 @@ export class DashboardContainerComponent {
 
   navigateToProjectDashboard() {
     this.router.navigate(['/']);
+  }
+
+  closeContactSalesSlideout() {
+    this.contactSalesService.close();
   }
 }

@@ -1,22 +1,20 @@
-import {
-    ActivepiecesError,
-    ErrorCode,
-    LocalesEnum,
-    UserId,
-    apId,
-    isNil,
-    spreadIfDefined,
-} from '@activepieces/shared'
 import { databaseConnection } from '../database/database-connection'
-import { PlatformEntity } from './platform.entity'
-import {
-    FilteredPieceBehavior,
-    Platform,
-    PlatformId,
-    UpdatePlatformRequestBody,
-} from '@activepieces/shared'
 import { defaultTheme } from '../flags/theme'
 import { userService } from '../user/user-service'
+import { PlatformEntity } from './platform.entity'
+import {
+    ActivepiecesError,
+    apId,
+    ErrorCode,
+    FilteredPieceBehavior,
+
+    isNil,
+    LocalesEnum,
+    Platform,
+    PlatformId,
+    spreadIfDefined,
+    UpdatePlatformRequestBody,
+    UserId } from '@activepieces/shared'
 
 const repo = databaseConnection.getRepository<Platform>(PlatformEntity)
 
@@ -57,9 +55,9 @@ export const platformService = {
 
         const savedPlatform = await repo.save(newPlatform)
 
-        await addOwnerToPlatform({
-            platformId: newPlatform.id,
-            ownerId,
+        await userService.addOwnerToPlatform({
+            id: ownerId,
+            platformId: savedPlatform.id,
         })
 
 
@@ -76,8 +74,6 @@ export const platformService = {
     },
     async update(params: UpdateParams): Promise<Platform> {
         const platform = await this.getOneOrThrow(params.id)
-        assertPlatformOwnedByUser(platform, params.userId)
-
         const updatedPlatform: Platform = {
             ...platform,
             ...spreadIfDefined('name', params.name),
@@ -98,8 +94,6 @@ export const platformService = {
             ...spreadIfDefined('smtpPassword', params.smtpPassword),
             ...spreadIfDefined('smtpSenderEmail', params.smtpSenderEmail),
             ...spreadIfDefined('smtpUseSSL', params.smtpUseSSL),
-            ...spreadIfDefined('privacyPolicyUrl', params.privacyPolicyUrl),
-            ...spreadIfDefined('termsOfServiceUrl', params.termsOfServiceUrl),
             ...spreadIfDefined('cloudAuthEnabled', params.cloudAuthEnabled),
             ...spreadIfDefined('defaultLocale', params.defaultLocale),
             ...spreadIfDefined('showPoweredBy', params.showPoweredBy),
@@ -131,22 +125,6 @@ export const platformService = {
             id,
         })
     },
-
-    async getOneByOwner({
-        ownerId,
-    }: GetOneByOwnerParams): Promise<Platform | null> {
-        return repo.findOneBy({
-            ownerId,
-        })
-    },
-
-    async checkUserIsOwner({
-        platformId,
-        userId,
-    }: CheckUserIsOwnerParams): Promise<boolean> {
-        const platform = await this.getOneOrThrow(platformId)
-        return platform.ownerId === userId
-    },
 }
 
 const assertPlatformExists: (
@@ -160,28 +138,6 @@ const assertPlatformExists: (
             },
         })
     }
-}
-
-const assertPlatformOwnedByUser = (
-    platform: Platform,
-    userId: UserId,
-): void => {
-    if (platform.ownerId !== userId) {
-        throw new ActivepiecesError({
-            code: ErrorCode.AUTHORIZATION,
-            params: {},
-        })
-    }
-}
-
-const addOwnerToPlatform = ({
-    platformId,
-    ownerId,
-}: AddOwnerToPlatformParams): Promise<void> => {
-    return userService.updatePlatformId({
-        id: ownerId,
-        platformId,
-    })
 }
 
 
@@ -198,25 +154,9 @@ type NewPlatform = Omit<Platform, 'created' | 'updated'>
 
 type UpdateParams = UpdatePlatformRequestBody & {
     id: PlatformId
-    userId: UserId
     auditLogEnabled?: boolean
     showPoweredBy?: boolean
     ssoEnabled?: boolean
     gitSyncEnabled?: boolean
     embeddingEnabled?: boolean
 }
-
-type GetOneByOwnerParams = {
-    ownerId: UserId
-}
-
-type CheckUserIsOwnerParams = {
-    platformId: PlatformId
-    userId: UserId
-}
-
-type AddOwnerToPlatformParams = {
-    platformId: PlatformId
-    ownerId: UserId
-}
-

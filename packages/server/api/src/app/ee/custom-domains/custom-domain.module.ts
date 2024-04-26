@@ -1,17 +1,17 @@
 import {
-    AddDomainRequest,
-    ListCustomDomainsRequest,
-} from '@activepieces/ee-shared'
-import {
     FastifyPluginAsyncTypebox,
     Static,
     Type,
 } from '@fastify/type-provider-typebox'
-import { customDomainService } from './custom-domain.service'
 import { HttpStatusCode } from 'axios'
-import { platformMustBeOwnedByCurrentUser } from '../authentication/ee-authorization'
-import { assertNotNullOrUndefined } from '@activepieces/shared'
 import { StatusCodes } from 'http-status-codes'
+import { platformMustBeOwnedByCurrentUser } from '../authentication/ee-authorization'
+import { customDomainService } from './custom-domain.service'
+import {
+    AddDomainRequest,
+    ListCustomDomainsRequest,
+} from '@activepieces/ee-shared'
+import { assertNotNullOrUndefined } from '@activepieces/shared'
 
 const GetOneRequest = Type.Object({
     id: Type.String(),
@@ -68,6 +68,40 @@ const customDomainController: FastifyPluginAsyncTypebox = async (app) => {
             return customDomainService.list({
                 platformId,
                 request: request.query,
+            })
+        },
+    )
+
+    app.get(
+        '/validation/:id',
+        {
+            schema: {
+                params: GetOneRequest,
+            },
+        },
+        async (request) => {
+            const platformId = request.principal.platform.id
+            assertNotNullOrUndefined(platformId, 'platformId')
+
+            return customDomainService.getDomainValidationData({
+                id: request.params.id,
+            })
+        },
+    )
+
+    app.patch(
+        '/verify/:id',
+        {
+            schema: {
+                params: GetOneRequest,
+            },
+        },
+        async (request) => {
+            const platformId = request.principal.platform.id
+            assertNotNullOrUndefined(platformId, 'platformId')
+            return customDomainService.verifyDomain({
+                id: request.params.id,
+                platformId,
             })
         },
     )

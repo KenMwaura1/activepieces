@@ -1,8 +1,20 @@
+import { Static, Type } from '@sinclair/typebox'
 import { BaseModelSchema, Nullable } from '../common/base-model'
 import { ApId } from '../common/id-generator'
-import { Static, Type } from '@sinclair/typebox'
+
+export const ListProjectRequestForUserQueryParams = Type.Object({
+    cursor: Type.Optional(Type.String()),
+    limit: Type.Optional(Type.Number()),
+})
+
+export type ListProjectRequestForUserQueryParams = Static<typeof ListProjectRequestForUserQueryParams>
 
 export type ProjectId = ApId
+
+export enum PiecesFilterType {
+    NONE = 'NONE',
+    ALLOWED = 'ALLOWED',
+}
 
 export enum NotificationStatus {
     NEVER = 'NEVER',
@@ -21,15 +33,13 @@ export type ProjectPlanId = string
 export const ProjectPlan = Type.Object({
     ...BaseModelSchema,
     projectId: Type.String(),
-    stripeCustomerId: Type.String(),
-    stripeSubscriptionId: Nullable(Type.String()),
-    subscriptionStartDatetime: Type.String(),
-    flowPlanName: Type.String(),
+    name: Type.String(),
     minimumPollingInterval: Type.Number(),
+    piecesFilterType: Type.Enum(PiecesFilterType),
+    pieces: Type.Array(Type.String()),
     connections: Type.Number(),
     teamMembers: Type.Number(),
     tasks: Type.Number(),
-    tasksPerDay: Nullable(Type.Number()),
 })
 
 export type ProjectPlan = Static<typeof ProjectPlan>
@@ -37,6 +47,7 @@ export type ProjectPlan = Static<typeof ProjectPlan>
 
 export const Project = Type.Object({
     ...BaseModelSchema,
+    deleted: Nullable(Type.String()),
     ownerId: Type.String(),
     displayName: Type.String(),
     notifyStatus: Type.Enum(NotificationStatus),
@@ -47,12 +58,19 @@ export const Project = Type.Object({
 export type Project = Static<typeof Project>
 
 export const ProjectWithLimits = Type.Composite([
-    Project,
+    Type.Omit(Project, ['deleted']),
     Type.Object({
         usage: ProjectUsage,
         plan: ProjectPlan,
     }),
 
 ])
+
+export const UpdateProjectRequestInCommunity = Type.Object({
+    notifyStatus: Type.Optional(Type.Enum(NotificationStatus)),
+    displayName: Type.Optional(Type.String()),
+})
+
+export type UpdateProjectRequestInCommunity = Static<typeof UpdateProjectRequestInCommunity>
 
 export type ProjectWithLimits = Static<typeof ProjectWithLimits>

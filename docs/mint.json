@@ -7,9 +7,9 @@
   },
   "favicon": "/favicon.svg",
   "colors": {
-    "primary": "#5155D7",
-    "dark": "#3033A6",
-    "light": "#6D72F6",
+    "primary": "#6e41e2",
+    "dark": "#6838e0",
+    "light": "#c5b3f3",
     "background": {
       "dark": "#121212"
     }
@@ -18,8 +18,7 @@
     "/openapi.json"
   ],
   "metadata": {
-    "og:image": "https://uploads-ssl.webflow.com/62c21c5154de255ece48bdf4/62c4ecbe6b2d76719d890ae7_Screenshot%202022-07-06%20at%2004.59.45-p-2600.png",
-    "description": "Open source alternative to zapier"
+    "description": "Open source no-code business automation· Zapier open source alternative"
   },
   "topbarCtaButton": {
     "type": "link",
@@ -32,7 +31,7 @@
   },
   "topbarLinks": [
     {
-      "name": "Github",
+      "name": "GitHub",
       "url": "https://github.com/activepieces/activepieces"
     }
   ],
@@ -200,24 +199,27 @@
       ]
     },
     {
-      "group": "Tutorials",
+      "group": "Build a Piece",
       "pages": [
-        "developers/setup-fork",
+        "developers/building-pieces/start-building",
+        "developers/building-pieces/setup-fork",
         {
           "group": "Development Environment",
           "icon": "circle-2",
           "pages": [
             "developers/development-setup/getting-started",
-            "developers/development-setup/codespaces",
             "developers/development-setup/local",
-            "developers/development-setup/dev-container"
+            "developers/development-setup/dev-container",
+            "developers/development-setup/codespaces"
           ]
         },
+        "developers/building-pieces/piece-definition",
+        "developers/building-pieces/piece-authentication",
         "developers/building-pieces/create-action",
         "developers/building-pieces/create-trigger",
         {
           "group": "Sharing Pieces",
-          "icon": "circle-5",
+          "icon": "circle-7",
           "pages": [
             "developers/sharing-pieces/overview",
             "developers/sharing-pieces/contribute",
@@ -252,38 +254,22 @@
       ]
     },
     {
-      "group": "Architecture",
+      "group": "Misc",
       "pages": [
-        "developers/architecture/repo-structure"
-      ]
-    },
-    {
-      "group":"Customer Portal",
-      "pages":[
-        "customer-portal/overview",
-        "customer-portal/activity",
-        "customer-portal/connections",
-        "customer-portal/inviting-customer"      
+        "developers/misc/repo-structure",
+        "developers/misc/private-fork"
       ]
     },
     {
       "group": "Embedding",
       "pages": [
-        {
-          "group": "Configuration",
-          "icon": "code",
-          "pages": [
-            "embedding/configuration/generate-jwt",
-            "embedding/configuration/initialize-embed"
-          ]
-        },
-        {
-          "group": "Connections",
-          "icon": "cards-blank",
-          "pages": [
-            "embedding/connections/create-connection"
-          ]
-        }
+        "embedding/overview",
+        "embedding/provision-users",
+        "embedding/embed-builder",
+        "embedding/navigation",
+        "embedding/customize-pieces",
+        "embedding/embed-connections",
+        "embedding/sdk-changelog"
       ]
     },
     {

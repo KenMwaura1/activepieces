@@ -18,14 +18,8 @@
     "baseUrl": ".",
     "paths": {
       "@activepieces/ee-auth": ["packages/ee/auth/src/index.ts"],
-      "@activepieces/ee-billing-ui": ["packages/ee/billing/ui/src/index.ts"],
-      "@activepieces/ee-components": ["packages/ee/components/src/index.ts"],
-      "@activepieces/ee-embed-sdk": ["packages/ee/embed-sdk/src/index.ts"],
       "@activepieces/ee-shared": ["packages/ee/shared/src/index.ts"],
       "@activepieces/ee/billing/ui": ["packages/ee/billing/ui/src/index.ts"],
-      "@activepieces/ee/project-members": [
-        "packages/ee/project-members/src/index.ts"
-      ],
       "@activepieces/engine": ["packages/engine/src/main.ts"],
       "@activepieces/piece-activecampaign": [
         "packages/pieces/community/activecampaign/src/index.ts"
@@ -100,6 +94,9 @@
       "@activepieces/piece-clarifai": [
         "packages/pieces/community/clarifai/src/index.ts"
       ],
+      "@activepieces/piece-claude": [
+        "packages/pieces/community/claude/src/index.ts"
+      ],
       "@activepieces/piece-clearout": [
         "packages/pieces/community/clearout/src/index.ts"
       ],
@@ -152,6 +149,9 @@
       "@activepieces/piece-dropbox": [
         "packages/pieces/community/dropbox/src/index.ts"
       ],
+      "@activepieces/piece-elevenlabs": [
+        "packages/pieces/community/elevenlabs/src/index.ts"
+      ],
       "@activepieces/piece-facebook-leads": [
         "packages/pieces/community/facebook-leads/src/index.ts"
       ],
@@ -202,6 +202,9 @@
       ],
       "@activepieces/piece-gmail": [
         "packages/pieces/community/gmail/src/index.ts"
+      ],
+      "@activepieces/piece-gmail-dev": [
+        "packages/pieces/community/gmail-dev/src/index.ts"
       ],
       "@activepieces/piece-google-calendar": [
         "packages/pieces/community/google-calendar/src/index.ts"
@@ -329,6 +332,12 @@
       "@activepieces/piece-microsoft-onedrive": [
         "packages/pieces/community/microsoft-onedrive/src/index.ts"
       ],
+      "@activepieces/piece-microsoft-sharepoint": [
+        "packages/pieces/community/microsoft-sharepoint/src/index.ts"
+      ],
+      "@activepieces/piece-microsoft-teams": [
+        "packages/pieces/community/microsoft-teams/src/index.ts"
+      ],
       "@activepieces/piece-mindee": [
         "packages/pieces/community/mindee/src/index.ts"
       ],
@@ -346,6 +355,9 @@
       ],
       "@activepieces/piece-nifty": [
         "packages/pieces/community/nifty/src/index.ts"
+      ],
+      "@activepieces/piece-nocodb": [
+        "packages/pieces/community/nocodb/src/index.ts"
       ],
       "@activepieces/piece-notion": [
         "packages/pieces/community/notion/src/index.ts"
@@ -371,6 +383,7 @@
       "@activepieces/piece-pastefy": [
         "packages/pieces/community/pastefy/src/index.ts"
       ],
+      "@activepieces/piece-pdf": ["packages/pieces/community/pdf/src/index.ts"],
       "@activepieces/piece-pipedrive": [
         "packages/pieces/community/pipedrive/src/index.ts"
       ],
@@ -462,6 +475,9 @@
       "@activepieces/piece-store": [
         "packages/pieces/community/store/src/index.ts"
       ],
+      "@activepieces/piece-straico": [
+        "packages/pieces/community/straico/src/index.ts"
+      ],
       "@activepieces/piece-stripe": [
         "packages/pieces/community/stripe/src/index.ts"
       ],
@@ -522,6 +538,9 @@
       "@activepieces/piece-webhook": [
         "packages/pieces/community/webhook/src/index.ts"
       ],
+      "@activepieces/piece-wedof": [
+        "packages/pieces/community/wedof/src/index.ts"
+      ],
       "@activepieces/piece-whatsable": [
         "packages/pieces/community/whatsable/src/index.ts"
       ],
@@ -559,11 +578,11 @@
       "@activepieces/pieces-framework": [
         "packages/pieces/community/framework/src/index.ts"
       ],
+      "@activepieces/server-shared": ["packages/server/shared/src/index.ts"],
       "@activepieces/shared": ["packages/shared/src/index.ts"],
       "@activepieces/ui-canvas-utils": [
         "packages/ui/canvas-utils/src/index.ts"
       ],
-      "@activepieces/ui-ee-platform": ["packages/ee/ui-platform/src/index.ts"],
       "@activepieces/ui-feature-builder-header": [
         "packages/ui/feature-builder-header/src/index.ts"
       ],
@@ -608,12 +627,17 @@
         "packages/ui/feature-templates/src/index.ts"
       ],
       "@ee/*": ["packages/ee/*"],
-      "server-shared": ["packages/server/shared/src/index.ts"],
+      "ee-billing-ui": ["packages/ee/ui/billing/src/index.ts"],
+      "ee-components": ["packages/ee/ui/components/src/index.ts"],
+      "ee-embed-sdk": ["packages/ee/ui/embed-sdk/src/index.ts"],
+      "ee-project-members": ["packages/ee/ui/project-members/src/index.ts"],
       "server-worker": ["packages/server/worker/src/index.ts"],
+      "ui-ee-platform": ["packages/ee/ui/platform/src/index.ts"],
       "ui-feature-flow-builder": [
         "packages/ui/feature-flow-builder/src/index.ts"
       ],
-      "ui-feature-forms": ["packages/ui/features-forms/src/index.ts"]
+      "ui-feature-forms": ["packages/ui/features-forms/src/index.ts"],
+      "ui-feature-tags": ["packages/ui/feature-tags/src/index.ts"]
     },
     "resolveJsonModule": true
   },

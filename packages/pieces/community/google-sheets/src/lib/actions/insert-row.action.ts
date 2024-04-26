@@ -25,7 +25,7 @@ export const insertRowAction = createAction({
       required: false,
     }),
     first_row_headers: Property.Checkbox({
-      displayName: 'Are the First row Headers?',
+      displayName: 'Does the first row contain headers?',
       description: 'If the first row is headers',
       required: true,
       defaultValue: false,
@@ -58,6 +58,15 @@ export const insertRowAction = createAction({
         : ValueInputOption.USER_ENTERED,
       values: stringifyArray(formattedValues),
     });
-    return res.body;
+
+    //Split the updatedRange string to extract the row number
+    const updatedRangeParts = res.body.updates.updatedRange.split('!');
+    const updatedRowRange = updatedRangeParts[1];
+    const updatedRowNumber = parseInt(
+      updatedRowRange.split(':')[0].substring(1),
+      10
+    );
+
+    return { ...res.body, row: updatedRowNumber };
   },
 });

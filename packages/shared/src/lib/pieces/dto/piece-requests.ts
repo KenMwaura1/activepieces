@@ -17,6 +17,7 @@ export enum PieceSortBy {
     NAME = 'NAME',
     UPDATED = 'UPDATED',
     CREATED = 'CREATED',
+    POPULARITY = 'POPULARITY',
 }
 
 export enum PieceOrderBy {
@@ -40,6 +41,7 @@ export type GetPieceRequestParams = Static<typeof GetPieceRequestParams>
 
 export const ListPiecesRequestQuery = Type.Object({
     release: Type.Optional(ExactVersionType),
+    includeTags: Type.Optional(Type.Boolean()),
     includeHidden: Type.Optional(Type.Boolean()),
     edition: Type.Optional(Type.Enum(ApEdition)),
     searchQuery: Type.Optional(Type.String()),
@@ -51,10 +53,20 @@ export const ListPiecesRequestQuery = Type.Object({
 
 export type ListPiecesRequestQuery = Static<typeof ListPiecesRequestQuery>
 
+export const ListVersionRequestQuery = Type.Object({
+    release: ExactVersionType,
+    name: Type.String(),
+    edition: Type.Optional(Type.Enum(ApEdition)),
+})
+
+export type ListVersionRequestQuery = Static<typeof ListVersionRequestQuery>
 
 export const GetPieceRequestQuery = Type.Object({
     version: Type.Optional(VersionType),
 })
+
+export const ListVersionsResponse = Type.Record(ExactVersionType, Type.Object({}))
+export type ListVersionsResponse = Static<typeof ListVersionsResponse>
 
 export type GetPieceRequestQuery = Static<typeof GetPieceRequestQuery>
 

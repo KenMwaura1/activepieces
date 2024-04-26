@@ -1,31 +1,30 @@
 import crypto from 'crypto'
 import jsonwebtoken from 'jsonwebtoken'
+import { appConnectionService } from '../../app-connection/app-connection-service/app-connection-service'
+import { databaseConnection } from '../../database/database-connection'
+import { buildPaginator } from '../../helper/pagination/build-paginator'
+import { paginationHelper } from '../../helper/pagination/pagination-utils'
+import { appCredentialService } from '../app-credentials/app-credentials.service'
 import { ConnectionKeyEntity } from './connection-key.entity'
 import {
-    SeekPage,
-    AppConnection,
-    ActivepiecesError,
-    ErrorCode,
-    AppConnectionType,
-} from '@activepieces/shared'
-import {
+    AppCredentialType,
     ConnectionKey,
     ConnectionKeyId,
-    UpsertSigningKeyConnection,
     GetOrDeleteConnectionFromTokenRequest,
-    UpsertConnectionFromToken,
-    AppCredentialType,
     UpsertApiKeyConnectionFromToken,
+    UpsertConnectionFromToken,
     UpsertOAuth2ConnectionFromToken,
+    UpsertSigningKeyConnection,
 } from '@activepieces/ee-shared'
-import { appCredentialService } from '../app-credentials/app-credentials.service'
-import { ProjectId, Cursor, apId } from '@activepieces/shared'
-import { paginationHelper } from '../../helper/pagination/pagination-utils'
-import { buildPaginator } from '../../helper/pagination/build-paginator'
-import { databaseConnection } from '../../database/database-connection'
-import { appConnectionService } from '../../app-connection/app-connection-service/app-connection-service'
+import { ActivepiecesError, apId, AppConnection,
+    AppConnectionType,
+    Cursor,
+    ErrorCode,
+    ProjectId,
+    SeekPage,
+} from '@activepieces/shared'
 
-const connectonKeyRepo = databaseConnection.getRepository(ConnectionKeyEntity)
+const connectionKeyRepo = databaseConnection.getRepository(ConnectionKeyEntity)
 
 export const connectionKeyService = {
     async getConnection({
@@ -128,7 +127,7 @@ export const connectionKeyService = {
                 format: 'pem',
             },
         })
-        const savedConnection: ConnectionKey = await connectonKeyRepo.save({
+        const savedConnection: ConnectionKey = await connectionKeyRepo.save({
             id: apId(),
             projectId,
             settings: {
@@ -160,14 +159,14 @@ export const connectionKeyService = {
                 beforeCursor: decodedCursor.previousCursor,
             },
         })
-        const queryBuilder = connectonKeyRepo
+        const queryBuilder = connectionKeyRepo
             .createQueryBuilder('connection_key')
             .where({ projectId })
         const { data, cursor } = await paginator.paginate(queryBuilder)
         return paginationHelper.createPage<ConnectionKey>(data, cursor)
     },
     async delete(id: ConnectionKeyId): Promise<void> {
-        await connectonKeyRepo.delete({
+        await connectionKeyRepo.delete({
             id,
         })
     },
@@ -177,7 +176,7 @@ async function getConnectioName(request: {
     projectId: string
     token: string
 }): Promise<string | null> {
-    const connectionKeys = await connectonKeyRepo.findBy({
+    const connectionKeys = await connectionKeyRepo.findBy({
         projectId: request.projectId,
     })
     let connectionName: string | null = null

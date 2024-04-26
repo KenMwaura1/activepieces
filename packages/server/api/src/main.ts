@@ -1,10 +1,10 @@
-import { databaseConnection } from './app/database/database-connection'
-import { ApEnvironment } from '@activepieces/shared'
-import { seedDevData } from './app/database/seeds/dev-seeds'
-import { setupApp } from './app/app'
 import { FastifyInstance } from 'fastify'
+import { setupApp } from './app/app'
+import { databaseConnection } from './app/database/database-connection'
+import { seedDevData } from './app/database/seeds/dev-seeds'
 import { enforceLimits } from './app/ee/helper/license-validator'
-import { SystemProp, logger, system } from 'server-shared'
+import { logger, system, SystemProp } from '@activepieces/server-shared'
+import { ApEnvironment } from '@activepieces/shared'
 
 const start = async (app: FastifyInstance): Promise<void> => {
     try {
@@ -21,21 +21,18 @@ const start = async (app: FastifyInstance): Promise<void> => {
  / ____ \\  | |____     | |     _| |_     \\  /    | |____  | |       _| |_  | |____  | |____  | |____   ____) |
 /_/    \\_\\  \\_____|    |_|    |_____|     \\/     |______| |_|      |_____| |______|  \\_____| |______| |_____/
 
-The application started on ${system.get(
-            SystemProp.FRONTEND_URL,
-        )}, as specified by the AP_FRONTEND_URL variables.
-    `)
+The application started on ${system.get(SystemProp.FRONTEND_URL)}, as specified by the AP_FRONTEND_URL variables.`)
 
-        const environemnt = system.get(SystemProp.ENVIRONMENT)
+        const environment = system.get(SystemProp.ENVIRONMENT)
         const piecesSource = system.getOrThrow(SystemProp.PIECES_SOURCE)
         const pieces = process.env.AP_DEV_PIECES
 
         logger.warn(
             `[WARNING]: Pieces will be loaded from source type ${piecesSource}`,
         )
-        if (environemnt === ApEnvironment.DEVELOPMENT) {
+        if (environment === ApEnvironment.DEVELOPMENT) {
             logger.warn(
-                `[WARNING]: The application is running in ${environemnt} mode.`,
+                `[WARNING]: The application is running in ${environment} mode.`,
             )
             logger.warn(
                 `[WARNING]: This is only shows pieces specified in AP_DEV_PIECES ${pieces} environment variable.`,
@@ -93,6 +90,6 @@ const main = async (): Promise<void> => {
 }
 
 main().catch((e) => {
-    logger.error(e, '[Main#main]');
-    process.exit(1);
-});
+    logger.error(e, '[Main#main]')
+    process.exit(1)
+})

@@ -30,10 +30,7 @@ import {
   FlowBuilderService,
 } from '@activepieces/ui/common';
 import { BuilderAutocompleteMentionsDropdownService } from '@activepieces/ui/common';
-import {
-  CORE_SCHEDULE,
-  PieceMetadataService,
-} from '@activepieces/ui/feature-pieces';
+import { PieceMetadataService } from '@activepieces/ui/feature-pieces';
 
 @Component({
   selector: 'app-flow-right-sidebar',
@@ -75,7 +72,7 @@ export class FlowRightSidebarComponent implements OnInit {
     private testStepService: TestStepService,
     private renderer2: Renderer2,
     private flagService: FlagService,
-    private pieceMetadaService: PieceMetadataService,
+    private pieceMetadataService: PieceMetadataService,
     public builderService: FlowBuilderService,
     private builderAutocompleteMentionsDropdownService: BuilderAutocompleteMentionsDropdownService
   ) {}
@@ -112,7 +109,7 @@ export class FlowRightSidebarComponent implements OnInit {
     return this.currentStep$.pipe(
       switchMap((step) => {
         if (step && step.type === TriggerType.PIECE) {
-          return this.pieceMetadaService
+          return this.pieceMetadataService
             .getPieceMetadata(
               step.settings.pieceName,
               step.settings.pieceVersion
@@ -133,16 +130,6 @@ export class FlowRightSidebarComponent implements OnInit {
     this.currentStep$ = this.store
       .select(BuilderSelectors.selectCurrentStep)
       .pipe(
-        switchMap((step) => {
-          if (
-            step &&
-            step.type === TriggerType.PIECE &&
-            step.settings.pieceName === CORE_SCHEDULE
-          ) {
-            return of(null);
-          }
-          return of(step);
-        }),
         tap(() => {
           setTimeout(() => {
             this.builderAutocompleteMentionsDropdownService.editStepSection =
@@ -168,14 +155,20 @@ export class FlowRightSidebarComponent implements OnInit {
         switchMap((res) => {
           if (res) {
             return forkJoin([
-              this.pieceMetadaService.getPieceMetadata(
+              this.pieceMetadataService.getPieceMetadata(
                 res.pieceName,
                 res.version
               ),
-              this.pieceMetadaService.getLatestVersion(res.pieceName),
+              this.pieceMetadataService.getPieceMetadata(
+                res.pieceName,
+                undefined
+              ),
             ]).pipe(
               map(([pieceManifest, latestVersion]) => {
-                if (pieceManifest && pieceManifest.version === latestVersion) {
+                if (
+                  pieceManifest &&
+                  pieceManifest.version === latestVersion.version
+                ) {
                   return {
                     version: pieceManifest.version,
                     latest: true,
@@ -197,6 +190,7 @@ export class FlowRightSidebarComponent implements OnInit {
         })
       );
   }
+
   get sidebarType() {
     return RightSideBarType;
   }
@@ -251,7 +245,7 @@ export class FlowRightSidebarComponent implements OnInit {
     if (this.editStepSection && this.selectedStepResultContainer) {
       this.editStepSectionRect =
         this.editStepSection.nativeElement.getBoundingClientRect();
-      this.resizerDragged({ distance: { y: 99999999999, x: 0 } });
+      this.resizerDragged({ distance: { y: 99999, x: 0 } });
     }
   }
 }

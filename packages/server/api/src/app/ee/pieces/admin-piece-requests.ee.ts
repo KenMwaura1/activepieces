@@ -1,7 +1,9 @@
+import { Type } from '@fastify/type-provider-typebox'
 import {
     ErrorHandlingOptionsParam,
     TriggerStrategy,
     WebhookHandshakeConfiguration,
+    WebhookRenewConfiguration,
 } from '@activepieces/pieces-framework'
 import {
     ExactVersionType,
@@ -9,7 +11,6 @@ import {
     PrincipalType,
     TriggerTestStrategy,
 } from '@activepieces/shared'
-import { Type } from '@fastify/type-provider-typebox'
 
 const Action = Type.Object({
     name: Type.String(),
@@ -23,8 +24,9 @@ const Action = Type.Object({
 const Trigger = Type.Composite([
     Type.Omit(Action, ['requireAuth']),
     Type.Object({
+        renewConfiguration: Type.Optional(WebhookRenewConfiguration),
         handshakeConfiguration: WebhookHandshakeConfiguration,
-        sampleData: Type.Unknown(),
+        sampleData: Type.Optional(Type.Unknown()),
         type: Type.Enum(TriggerStrategy),
         testStrategy: Type.Enum(TriggerTestStrategy),
     }),

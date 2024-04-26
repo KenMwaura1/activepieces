@@ -1,8 +1,8 @@
 import { Static, Type } from '@sinclair/typebox'
 import { BaseModel, BaseModelSchema } from '../common/base-model'
-import { OAuth2AuthorizationMethod } from './oauth2-authorization-method'
 import { ApId } from '../common/id-generator'
 import { OAuth2GrantType } from './dto/upsert-app-connection-request'
+import { OAuth2AuthorizationMethod } from './oauth2-authorization-method'
 
 export type AppConnectionId = string
 
@@ -100,5 +100,18 @@ export const AppConnectionWithoutSensitiveData = Type.Object({
 }, {
     description: 'App connection is a connection to an external app.',
 })
-
+export const connectionNameRegex = '[A-Za-z0-9_\\-@\\+\\.]*'
 export type AppConnectionWithoutSensitiveData = Static<typeof AppConnectionWithoutSensitiveData> & { __brand: 'AppConnectionWithoutSensitiveData' }
+export const ValidateConnectionNameResponse = Type.Object({
+    isValid: Type.Boolean(),
+    error: Type.Optional(Type.String()),
+}, {
+    description: 'Response for validating connection name',
+})
+export type ValidateConnectionNameResponse = Static<typeof ValidateConnectionNameResponse>
+export const ValidateConnectionNameRequestBody = Type.Object({
+    connectionName: Type.String(),
+}, {
+    description: 'Request for validating connection name',
+})
+export type ValidateConnectionNameRequestBody = Static<typeof ValidateConnectionNameRequestBody>

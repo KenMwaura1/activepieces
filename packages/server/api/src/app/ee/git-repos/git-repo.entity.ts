@@ -1,7 +1,7 @@
 import { EntitySchema } from 'typeorm'
+import { ApIdSchema, BaseColumnSchemaPart, JSONB_COLUMN_TYPE } from '../../database/database-common'
 import { GitRepo } from '@activepieces/ee-shared'
 import { Project } from '@activepieces/shared'
-import { ApIdSchema, BaseColumnSchemaPart, JSONB_COLUMN_TYPE } from '../../database/database-common'
 
 type GitRepoSchema = GitRepo & {
     project: Project
@@ -19,6 +19,11 @@ export const GitRepoEntity = new EntitySchema<GitRepoSchema>({
         branch: {
             type: String,
             nullable: false,
+        },
+        branchType: {
+            type: String,
+            nullable: false,
+            default: 'DEVELOPMENT',
         },
         sshPrivateKey: {
             type: String,

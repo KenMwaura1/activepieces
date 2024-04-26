@@ -1,10 +1,9 @@
-import { ApFlagId, PlatformRole, PrincipalType, Project, ProjectMemberRole, User } from '@activepieces/shared'
-import { projectService } from '../../../project/project-service'
-import { AuthenticationServiceHooks } from './authentication-service-hooks'
-import { accessTokenManager } from '../../lib/access-token-manager'
-import { flagService } from '../../../flags/flag.service'
-import { userService } from '../../../user/user-service'
 import { platformService } from '../../../platform/platform.service'
+import { projectService } from '../../../project/project-service'
+import { userService } from '../../../user/user-service'
+import { accessTokenManager } from '../../lib/access-token-manager'
+import { AuthenticationServiceHooks } from './authentication-service-hooks'
+import { PrincipalType, Project, ProjectMemberRole, User } from '@activepieces/shared'
 
 const DEFAULT_PLATFORM_NAME = 'platform'
 
@@ -16,10 +15,6 @@ export const communityAuthenticationServiceHooks: AuthenticationServiceHooks = {
         // Empty
     },
     async postSignUp({ user }) {
-        const platformCreated = await flagService.getOne(ApFlagId.PLATFORM_CREATED)
-        if (platformCreated?.value) {
-            return getProjectAndToken(user)
-        }
         const platform = await platformService.create({
             ownerId: user.id,
             name: DEFAULT_PLATFORM_NAME,
@@ -29,12 +24,6 @@ export const communityAuthenticationServiceHooks: AuthenticationServiceHooks = {
             displayName: `${user.firstName}'s Project`,
             ownerId: user.id,
             platformId: platform.id,
-        })
-        await userService.updatePlatformId({ id: user.id, platformId: platform.id })
-
-        await flagService.save({
-            id: ApFlagId.PLATFORM_CREATED,
-            value: true,
         })
         return getProjectAndToken(user)
     },
@@ -55,7 +44,6 @@ async function getProjectAndToken(user: User): Promise<{ user: User, project: Pr
         projectId: project.id,
         platform: {
             id: platform.id,
-            role: platform.ownerId === user.id ? PlatformRole.OWNER : PlatformRole.MEMBER,
         },
     })
     return {

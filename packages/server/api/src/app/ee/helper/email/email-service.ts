@@ -1,11 +1,11 @@
-import { OtpType } from '@activepieces/ee-shared'
-import { ApEdition, User, assertNotNullOrUndefined, isNil } from '@activepieces/shared'
-import { logger } from 'server-shared'
+import { jwtUtils } from '../../../helper/jwt-utils'
 import { getEdition } from '../../../helper/secret-helper'
 import { projectService } from '../../../project/project-service'
 import { platformDomainHelper } from '../platform-domain-helper'
-import { jwtUtils } from '../../../helper/jwt-utils'
-import { EmailTemplateData, emailSender } from './email-sender/email-sender'
+import { emailSender, EmailTemplateData } from './email-sender/email-sender'
+import { OtpType } from '@activepieces/ee-shared'
+import { logger } from '@activepieces/server-shared'
+import { ApEdition, assertNotNullOrUndefined, isNil, User } from '@activepieces/shared'
 
 const EDITION = getEdition()
 
@@ -55,7 +55,7 @@ export const emailService = {
         assertNotNullOrUndefined(project, 'project')
 
         if (!isNil(project.platformId)) {
-            // Don't Inform the project users, as there should be a feature to manage billing by platform owners, If we send an emails to the project users It will confuse them since the email is not white labled.
+            // Don't Inform the project users, as there should be a feature to manage billing by platform owners, If we send an emails to the project users It will confuse them since the email is not white labeled.
             return
         }
 

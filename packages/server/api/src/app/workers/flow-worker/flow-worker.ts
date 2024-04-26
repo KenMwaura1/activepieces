@@ -1,6 +1,17 @@
+import { StatusCodes } from 'http-status-codes'
+import { fileService } from '../../file/file.service'
 import {
-    Action,
-    ActionType,
+    flowRunService,
+    HookType,
+} from '../../flows/flow-run/flow-run-service'
+import { flowVersionService } from '../../flows/flow-version/flow-version.service'
+import { engineHelper } from '../../helper/engine-helper'
+import { getPiecePackage } from '../../pieces/piece-metadata-service'
+import { EngineHttpResponse, engineResponseWatcher } from './engine-response-watcher'
+import { flowWorkerHooks } from './flow-worker-hooks'
+import { OneTimeJobData } from './job-data'
+import { exceptionHandler, logger } from '@activepieces/server-shared'
+import { Action, ActionType,
     ActivepiecesError,
     assertNotNullOrUndefined,
     BeginExecuteFlowOperation,
@@ -12,10 +23,14 @@ import {
     FileCompression,
     FileId,
     FileType,
-    FlowRunStatus,
     flowHelper,
     FlowRunId,
+    FlowRunResponse,
+    FlowRunStatus,
     FlowVersion,
+    isNil,
+    MAX_LOG_SIZE,
+    PauseType,
     PiecePackage,
     ProjectId,
     ResumeExecuteFlowOperation,
@@ -24,26 +39,8 @@ import {
     SourceCode,
     Trigger,
     TriggerType,
-    FlowRunResponse,
 } from '@activepieces/shared'
-import { Sandbox } from 'server-worker'
-import { flowVersionService } from '../../flows/flow-version/flow-version.service'
-import { fileService } from '../../file/file.service'
-import {
-    flowRunService,
-    HookType,
-} from '../../flows/flow-run/flow-run-service'
-import { OneTimeJobData } from './job-data'
-import { engineHelper } from '../../helper/engine-helper'
-import { isNil } from '@activepieces/shared'
-import { MAX_LOG_SIZE } from '@activepieces/shared'
-import { sandboxProvisioner } from '../sandbox/provisioner/sandbox-provisioner'
-import { SandBoxCacheType } from '../sandbox/provisioner/sandbox-cache-key'
-import { flowWorkerHooks } from './flow-worker-hooks'
-import { flowResponseWatcher } from '../../flows/flow-run/flow-response-watcher'
-import { getPiecePackage } from '../../pieces/piece-metadata-service'
-import { exceptionHandler, logger } from 'server-shared'
-import { logSerializer } from 'server-worker'
+import { logSerializer, Sandbox, SandBoxCacheType, sandboxProvisioner } from 'server-worker'
 
 type FinishExecutionParams = {
     flowRunId: FlowRunId
@@ -244,10 +241,11 @@ async function executeFlow(jobData: OneTimeJobData): Promise<void> {
             jobData.synchronousHandlerId &&
             jobData.hookType === HookType.BEFORE_LOG
         ) {
-            await flowResponseWatcher.publish(
+            const resultHttpResponse = await getFlowResponse(result)
+            await engineResponseWatcher.publish(
                 jobData.runId,
                 jobData.synchronousHandlerId,
-                result,
+                resultHttpResponse,
             )
         }
 
@@ -271,10 +269,11 @@ async function executeFlow(jobData: OneTimeJobData): Promise<void> {
             jobData.synchronousHandlerId &&
             jobData.hookType === HookType.AFTER_LOG
         ) {
-            await flowResponseWatcher.publish(
+            const resultHttpResponse = await getFlowResponse(result)
+            await engineResponseWatcher.publish(
                 jobData.runId,
                 jobData.synchronousHandlerId,
-                result,
+                resultHttpResponse,
             )
         }
 
@@ -304,7 +303,7 @@ async function executeFlow(jobData: OneTimeJobData): Promise<void> {
             await flowRunService.finish({
                 flowRunId: jobData.runId,
                 status: FlowRunStatus.TIMEOUT,
-                // TODO REVIST THIS
+                // TODO REVISIT THIS
                 tasks: 10,
                 logsFileId: null,
                 tags: [],
@@ -418,4 +417,63 @@ type ExtractFlowPiecesParams = {
 
 export const flowWorker = {
     executeFlow,
+}
+
+
+async function getFlowResponse(
+    result: FlowRunResponse,
+): Promise<EngineHttpResponse> {
+    switch (result.status) {
+        case FlowRunStatus.PAUSED:
+            if (result.pauseMetadata && result.pauseMetadata.type === PauseType.WEBHOOK) {
+                return {
+                    status: StatusCodes.OK,
+                    body: result.pauseMetadata.response,
+                    headers: {},
+                }
+            }
+            return {
+                status: StatusCodes.NO_CONTENT,
+                body: {},
+                headers: {},
+            }
+        case FlowRunStatus.STOPPED:
+            return {
+                status: result.stopResponse?.status ?? StatusCodes.OK,
+                body: result.stopResponse?.body,
+                headers: result.stopResponse?.headers ?? {},
+            }
+        case FlowRunStatus.INTERNAL_ERROR:
+            return {
+                status: StatusCodes.INTERNAL_SERVER_ERROR,
+                body: {
+                    message: 'An internal error has occurred',
+                },
+                headers: {},
+            }
+        case FlowRunStatus.FAILED:
+            return {
+                status: StatusCodes.INTERNAL_SERVER_ERROR,
+                body: {
+                    message: 'The flow has failed and there is no response returned',
+                },
+                headers: {},
+            }
+        case FlowRunStatus.TIMEOUT:
+        case FlowRunStatus.RUNNING:
+            return {
+                status: StatusCodes.GATEWAY_TIMEOUT,
+                body: {
+                    message: 'The request took too long to reply',
+                },
+                headers: {},
+            }
+        case FlowRunStatus.SUCCEEDED:
+        case FlowRunStatus.QUOTA_EXCEEDED:
+            return {
+                status: StatusCodes.NO_CONTENT,
+                body: {},
+                headers: {},
+            }
+    }
 }

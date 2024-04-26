@@ -1,55 +1,52 @@
 import fs from 'node:fs/promises'
-import {
-    apId,
-    EngineOperation,
-    EngineOperationType,
-    ExecutePropsOptions,
-    ExecuteTriggerOperation,
-    PieceTrigger,
-    PrincipalType,
-    ProjectId,
-    TriggerHookType,
-    ExecuteTriggerResponse,
-    ExecuteActionResponse,
-    EngineResponseStatus,
-    ActivepiecesError,
-    ErrorCode,
-    ExecuteExtractPieceMetadata,
-    ExecuteValidateAuthOperation,
-    ExecuteValidateAuthResponse,
-    EngineTestOperation,
-    BeginExecuteFlowOperation,
-    ResumeExecuteFlowOperation,
-    ExecuteStepOperation,
-    flowHelper,
-    Action,
-    assertNotNullOrUndefined,
-    ActionType,
-    FlowVersion,
-    ExecuteFlowOperation,
-    PlatformRole,
-    FlowRunResponse,
-} from '@activepieces/shared'
-import { Sandbox } from 'server-worker'
+import chalk from 'chalk'
+import { appEventRoutingService } from '../app-event-routing/app-event-routing.service'
 import { accessTokenManager } from '../authentication/lib/access-token-manager'
+import { flowVersionService } from '../flows/flow-version/flow-version.service'
+import {
+    getPiecePackage,
+    pieceMetadataService,
+} from '../pieces/piece-metadata-service'
+import { hashObject } from './encryption'
+import { getServerUrl } from './network-utils'
+import { getEdition, getWebhookSecret } from './secret-helper'
 import {
     DropdownState,
     DynamicPropsValue,
     PieceMetadata,
 } from '@activepieces/pieces-framework'
-import { logger } from 'server-shared'
-import chalk from 'chalk'
-import { getEdition, getWebhookSecret } from './secret-helper'
-import { appEventRoutingService } from '../app-event-routing/app-event-routing.service'
+import { logger } from '@activepieces/server-shared'
 import {
-    getPiecePackage,
-    pieceMetadataService,
-} from '../pieces/piece-metadata-service'
-import { flowVersionService } from '../flows/flow-version/flow-version.service'
-import { sandboxProvisioner } from '../workers/sandbox/provisioner/sandbox-provisioner'
-import { SandBoxCacheType } from '../workers/sandbox/provisioner/sandbox-cache-key'
-import { hashObject } from './encryption'
-import { getServerUrl } from './network-utils'
+    Action,
+    ActionType,
+    ActivepiecesError,
+    apId,
+    assertNotNullOrUndefined,
+    BeginExecuteFlowOperation,
+    EngineOperation,
+    EngineOperationType,
+    EngineResponseStatus,
+    EngineTestOperation,
+    ErrorCode,
+    ExecuteActionResponse,
+    ExecuteExtractPieceMetadata,
+    ExecuteFlowOperation,
+    ExecutePropsOptions,
+    ExecuteStepOperation,
+    ExecuteTriggerOperation,
+    ExecuteTriggerResponse,
+    ExecuteValidateAuthOperation,
+    ExecuteValidateAuthResponse,
+    flowHelper,
+    FlowRunResponse,
+    FlowVersion,
+    PieceTrigger,
+    PrincipalType,
+    ProjectId,
+    ResumeExecuteFlowOperation,
+    TriggerHookType,
+} from '@activepieces/shared'
+import { Sandbox, SandBoxCacheType, sandboxProvisioner } from 'server-worker'
 
 type GenerateWorkerTokenParams = {
     projectId: ProjectId
@@ -62,8 +59,8 @@ export type EngineHelperTriggerResult<
 > = ExecuteTriggerResponse<T>
 
 export type EngineHelperPropResult =
-  | DropdownState<unknown>
-  | Record<string, DynamicPropsValue>
+    | DropdownState<unknown>
+    | Record<string, DynamicPropsValue>
 
 export type EngineHelperActionResult = ExecuteActionResponse
 
@@ -73,13 +70,13 @@ export type EngineHelperCodeResult = ExecuteActionResponse
 export type EngineHelperExtractPieceInformation = PieceMetadata
 
 export type EngineHelperResult =
-  | EngineHelperFlowResult
-  | EngineHelperTriggerResult
-  | EngineHelperPropResult
-  | EngineHelperCodeResult
-  | EngineHelperExtractPieceInformation
-  | EngineHelperActionResult
-  | EngineHelperValidateAuthResult
+    | EngineHelperFlowResult
+    | EngineHelperTriggerResult
+    | EngineHelperPropResult
+    | EngineHelperCodeResult
+    | EngineHelperExtractPieceInformation
+    | EngineHelperActionResult
+    | EngineHelperValidateAuthResult
 
 export type EngineHelperResponse<Result extends EngineHelperResult> = {
     status: EngineResponseStatus
@@ -98,7 +95,6 @@ const generateWorkerToken = ({
         // TODO NOW remove this hack
         platform: {
             id: apId(),
-            role: PlatformRole.OWNER,
         },
     })
 }
@@ -285,14 +281,9 @@ export const engineHelper = {
     ): Promise<EngineHelperResponse<EngineHelperExtractPieceInformation>> {
         logger.debug({ operation }, '[EngineHelper#extractPieceMetadata]')
 
-        const { pieceName, pieceVersion } = operation
-        const piece = operation
-
         const sandbox = await sandboxProvisioner.provision({
-            type: SandBoxCacheType.PIECE,
-            pieceName,
-            pieceVersion,
-            pieces: [piece],
+            type: SandBoxCacheType.NONE,
+            pieces: [operation],
         })
 
         return execute(
@@ -314,8 +305,8 @@ export const engineHelper = {
         )
         const lockedFlowVersion = await lockPieceAction(operation)
         const step = flowHelper.getStep(lockedFlowVersion, operation.stepName) as
-      | Action
-      | undefined
+            | Action
+            | undefined
         assertNotNullOrUndefined(step, 'Step not found')
         const sandbox = await getSandboxForAction(
             operation.projectId,
@@ -428,7 +419,7 @@ async function getSandboxForAction(
     switch (action.type) {
         case ActionType.PIECE: {
             const { packageType, pieceType, pieceName, pieceVersion } =
-        action.settings
+                action.settings
             const piece = {
                 packageType,
                 pieceType,

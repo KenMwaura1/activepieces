@@ -1,6 +1,5 @@
 import { Store } from '@ngrx/store';
 import {
-  combineLatest,
   debounceTime,
   filter,
   forkJoin,
@@ -18,7 +17,6 @@ import {
   Component,
   ElementRef,
   Input,
-  OnInit,
   ViewChild,
 } from '@angular/core';
 import {
@@ -33,7 +31,6 @@ import {
   PieceType,
   PackageType,
   ApFlagId,
-  SuggestionType,
 } from '@activepieces/shared';
 import { FormControl } from '@angular/forms';
 import {
@@ -47,30 +44,28 @@ import {
   StepTypeSideBarProps,
 } from '@activepieces/ui/feature-builder-store';
 import {
+  extractInitialPieceStepValuesAndValidity,
   FlagService,
   FlowItemDetails,
   getDefaultDisplayNameForPiece,
   getDisplayNameForTrigger,
-  PieceMetadataModelSummary,
   TelemetryService,
 } from '@activepieces/ui/common';
 import { Actions, ofType } from '@ngrx/effects';
 import { PieceMetadataService } from '@activepieces/ui/feature-pieces';
-import { ActionOrTriggerName, doesQueryMatchStep, isCoreStep } from './common';
+import { ActionBase, TriggerBase } from '@activepieces/pieces-framework';
 
 @Component({
   selector: 'app-step-type-sidebar',
   templateUrl: './step-type-sidebar.component.html',
   styleUrls: ['./step-type-sidebar.component.scss'],
 })
-export class StepTypeSidebarComponent implements OnInit, AfterViewInit {
+export class StepTypeSidebarComponent implements AfterViewInit {
   @ViewChild('searchInput') searchInput: ElementRef;
   _showTriggers = false;
   searchFormControl = new FormControl('');
   focusSearchInput$: Observable<void>;
-  //EE
   searchControlTelemetry$: Observable<void>;
-  //EE end
   showRequestPiece$: Observable<boolean>;
   loading$ = new Subject<boolean>();
   @Input() set showTriggers(shouldShowTriggers: boolean) {
@@ -90,7 +85,6 @@ export class StepTypeSidebarComponent implements OnInit, AfterViewInit {
     emptyListText: string;
   }[] = [];
   flowTypeSelected$: Observable<void>;
-  flowItemDetailsLoaded$: Observable<boolean>;
   triggersDetails$: Observable<FlowItemDetails[]>;
   constructor(
     private store: Store,
@@ -110,11 +104,10 @@ export class StepTypeSidebarComponent implements OnInit, AfterViewInit {
     this.showRequestPiece$ = this.flagsService.isFlagEnabled(
       ApFlagId.SHOW_COMMUNITY
     );
-    //EE
     this.searchControlTelemetry$ = this.searchFormControl.valueChanges.pipe(
       debounceTime(1500),
       filter((val) => !!val),
-      switchMap((val) => {
+      tap((val) => {
         this.telemetryService.capture({
           name: TelemetryEventName.PIECES_SEARCH,
           payload: {
@@ -122,20 +115,8 @@ export class StepTypeSidebarComponent implements OnInit, AfterViewInit {
             search: val || '',
           },
         });
-        return this.telemetryService.savePiecesSearch({
-          target: this._showTriggers ? 'triggers' : 'steps',
-          search: val || '',
-          insideTemplates: false,
-        });
       }),
       map(() => void 0)
-    );
-    //EE end
-  }
-
-  ngOnInit(): void {
-    this.flowItemDetailsLoaded$ = this.store.select(
-      BuilderSelectors.selectAllFlowItemsDetailsLoadedState
     );
   }
 
@@ -150,43 +131,69 @@ export class StepTypeSidebarComponent implements OnInit, AfterViewInit {
       emitEvent: false,
     });
     this.tabsAndTheirLists = [];
-    const coreItemsDetails$ = this._showTriggers
-      ? this.store.select(BuilderSelectors.selectFlowItemDetailsForCoreTriggers)
-      : this.store.select(BuilderSelectors.selectCoreFlowItemsDetails);
-    const customPiecesItemDetails$ = this._showTriggers
-      ? this.store.select(
-          BuilderSelectors.selectFlowItemDetailsForCustomPiecesTriggers
-        )
-      : this.store.select(
-          BuilderSelectors.selectFlowItemDetailsForCustomPiecesActions
-        );
 
-    const allItemDetails$ = forkJoin({
-      apps: customPiecesItemDetails$.pipe(take(1)),
-      core: coreItemsDetails$.pipe(take(1)),
-    }).pipe(
-      map((res) => {
-        const items = [...res.core, ...res.apps];
-        return items.sort((a, b) => (a.name > b.name ? 1 : -1));
-      })
+    const searchQuery$ = this.searchFormControl.valueChanges.pipe(
+      startWith(''),
+      debounceTime(300)
     );
+
+    const coreItemsDetails$ = searchQuery$.pipe(
+      tap(() => this.loading$.next(true)),
+      switchMap((searchQuery) => {
+        return this._showTriggers
+          ? this.pieceMetadataService.listCoreFlowItemsDetailsForTrigger(
+              searchQuery ?? undefined
+            )
+          : this.pieceMetadataService.listCoreFlowItemsDetailsForAction(
+              searchQuery ?? undefined
+            );
+      }),
+      tap(() => this.loading$.next(false))
+    );
+
+    const appItemsDetails$ = searchQuery$.pipe(
+      tap(() => this.loading$.next(true)),
+      switchMap((searchQuery) => {
+        return this._showTriggers
+          ? this.pieceMetadataService.listAppFlowItemsDetailsForTrigger(
+              searchQuery ?? undefined
+            )
+          : this.pieceMetadataService.listAppFlowItemsDetailsForAction(
+              searchQuery ?? undefined
+            );
+      }),
+      tap(() => this.loading$.next(false))
+    );
+
+    const allItemDetails$ = searchQuery$.pipe(
+      tap(() => this.loading$.next(true)),
+      switchMap((searchQuery) => {
+        return this._showTriggers
+          ? this.pieceMetadataService.listAllFlowItemsDetailsForTrigger(
+              searchQuery ?? undefined
+            )
+          : this.pieceMetadataService.listAllFlowItemsDetailsForAction(
+              searchQuery ?? undefined
+            );
+      }),
+      tap(() => this.loading$.next(false))
+    );
+
     this.tabsAndTheirLists.push({
       displayName: $localize`All`,
-      list$: this.applySearchToObservable(allItemDetails$),
+      list$: allItemDetails$,
       emptyListText: $localize`Oops! We didn't find any results.`,
     });
-
     this.tabsAndTheirLists.push({
       displayName: $localize`Core`,
-      list$: this.applySearchToObservable(coreItemsDetails$),
+      list$: coreItemsDetails$,
       emptyListText: $localize`Oops! We didn't find any results.`,
     });
-
     this.tabsAndTheirLists.push({
       displayName: this._showTriggers
         ? $localize`App Events`
         : $localize`App Actions`,
-      list$: this.applySearchToObservable(customPiecesItemDetails$),
+      list$: appItemsDetails$,
       emptyListText: $localize`Oops! We didn't find any results.`,
     });
   }
@@ -206,7 +213,7 @@ export class StepTypeSidebarComponent implements OnInit, AfterViewInit {
     suggestion,
   }: {
     flowItemDetails: FlowItemDetails;
-    suggestion?: ActionOrTriggerName;
+    suggestion?: ActionBase | TriggerBase;
   }) {
     this.flowTypeSelected$ = forkJoin({
       currentFlow: this.store
@@ -251,7 +258,7 @@ export class StepTypeSidebarComponent implements OnInit, AfterViewInit {
 
   private replaceTrigger(
     triggerDetails: FlowItemDetails,
-    suggestion?: ActionOrTriggerName
+    suggestion?: ActionBase | TriggerBase
   ) {
     const base = {
       name: 'trigger',
@@ -270,11 +277,13 @@ export class StepTypeSidebarComponent implements OnInit, AfterViewInit {
           settings: undefined,
         };
         break;
-      case TriggerType.PIECE:
+      case TriggerType.PIECE: {
+        const { valid, initialValues } =
+          this.extractSuggestionInitialValueAndValidity(suggestion);
         trigger = {
           ...base,
           type: TriggerType.PIECE,
-          valid: false,
+          valid: valid,
           settings: {
             packageType:
               triggerDetails.extra?.packageType ?? PackageType.REGISTRY,
@@ -283,13 +292,14 @@ export class StepTypeSidebarComponent implements OnInit, AfterViewInit {
             pieceVersion:
               triggerDetails.extra?.pieceVersion ?? 'NO_APP_VERSION',
             triggerName: suggestion?.name || '',
-            input: {},
+            input: initialValues,
             inputUiInfo: {
               currentSelectedData: '',
             },
           },
         };
         break;
+      }
     }
     this.store.dispatch(
       FlowsActions.updateTrigger({
@@ -304,7 +314,7 @@ export class StepTypeSidebarComponent implements OnInit, AfterViewInit {
     actionType: ActionType,
     flowItemDetails: FlowItemDetails,
     stepLocationRelativeToParent: StepLocationRelativeToParent,
-    suggestion?: ActionOrTriggerName
+    suggestion?: ActionBase | TriggerBase
   ): AddActionRequest {
     const baseProps = {
       name: flowHelper.findAvailableStepName(flowVersion, 'step'),
@@ -356,13 +366,15 @@ export class StepTypeSidebarComponent implements OnInit, AfterViewInit {
         };
       }
       case ActionType.PIECE: {
+        const { valid, initialValues } =
+          this.extractSuggestionInitialValueAndValidity(suggestion);
         return {
           parentStep: parentStep,
           stepLocationRelativeToParent: stepLocationRelativeToParent,
           action: {
             ...baseProps,
             type: ActionType.PIECE,
-            valid: false,
+            valid: valid,
             settings: {
               packageType:
                 flowItemDetails.extra?.packageType ?? PackageType.REGISTRY,
@@ -371,7 +383,7 @@ export class StepTypeSidebarComponent implements OnInit, AfterViewInit {
               pieceVersion:
                 flowItemDetails.extra?.pieceVersion ?? 'NO_APP_VERSION',
               actionName: suggestion?.name,
-              input: {},
+              input: initialValues,
               inputUiInfo: {
                 customizedInputs: {},
               },
@@ -412,90 +424,15 @@ export class StepTypeSidebarComponent implements OnInit, AfterViewInit {
       }
     }
   }
-
-  applySearchToObservable(
-    tabItems$: Observable<FlowItemDetails[]>
-  ): Observable<FlowItemDetails[]> {
-    this.loading$.next(true);
-    return combineLatest({
-      allTabItems: tabItems$,
-      search: this.searchFormControl.valueChanges.pipe(
-        startWith(this.searchFormControl.value),
-        tap(() => {
-          this.loading$.next(true);
-        }),
-        debounceTime(300),
-        map((search) => (search ? search : '')),
-        switchMap((searchQuery) => {
-          return this.createSearchRequest(searchQuery);
-        })
-      ),
-    }).pipe(
-      map((res) => {
-        const matches = this.addMatchingCorePiecesToServerResponse(
-          res.search.searchQuery,
-          res.allTabItems,
-          res.search.serverResponse
-        );
-        return this.showActionsOrTriggers(matches, res.search.serverResponse);
-      }),
-
-      tap(() => {
-        this.loading$.next(false);
-      })
-    );
-  }
-
-  private createSearchRequest(searchQuery: string) {
-    const serverRequestToSearchForPiece$ =
-      this.pieceMetadataService.getPiecesManifestFromServer({
-        includeHidden: false,
-        searchQuery,
-        suggestionType:
-          searchQuery.length >= 3
-            ? this._showTriggers
-              ? SuggestionType.TRIGGER
-              : SuggestionType.ACTION
-            : undefined,
-      });
-    return serverRequestToSearchForPiece$.pipe(
-      map((res) => {
-        return {
-          searchQuery,
-          serverResponse: res,
-        };
-      })
-    );
-  }
-  /**Need to search for core steps like webhook,loop,branch and code */
-  private addMatchingCorePiecesToServerResponse(
-    searchQuery: string,
-    allTabItems: FlowItemDetails[],
-    serverResponse: PieceMetadataModelSummary[]
+  private extractSuggestionInitialValueAndValidity(
+    suggestion?: ActionBase | TriggerBase
   ) {
-    return allTabItems.filter(
-      (item) =>
-        (isCoreStep(item) && doesQueryMatchStep(item, searchQuery)) ||
-        serverResponse.findIndex((p) => p.displayName === item.name) > -1
-    );
-  }
-  private showActionsOrTriggers(
-    searchResult: FlowItemDetails[],
-    serverResponse: PieceMetadataModelSummary[]
-  ) {
-    return searchResult.map((item) => {
-      const serverResult = serverResponse.find((it) => {
-        return it.displayName === item.name;
-      });
-      if (!serverResult) {
-        return item;
-      }
+    if (!suggestion) {
       return {
-        ...item,
-        suggestions: this._showTriggers
-          ? serverResult.suggestedTriggers
-          : serverResult.suggestedActions,
+        valid: false,
+        initialValues: {},
       };
-    });
+    }
+    return extractInitialPieceStepValuesAndValidity(suggestion.props);
   }
 }

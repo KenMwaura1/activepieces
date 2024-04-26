@@ -1,14 +1,14 @@
-import {
-    ActivepiecesError,
-    AuthenticationResponse,
-    ErrorCode,
-    Platform,
-    assertNotNullOrUndefined,
-    isNil,
-} from '@activepieces/shared'
-import { AuthnProvider } from './authn-provider'
 import { authenticationService } from '../../../../authentication/authentication-service'
 import { flagService } from '../../../../flags/flag.service'
+import { AuthnProvider } from './authn-provider'
+import {
+    ActivepiecesError,
+    assertNotNullOrUndefined,
+    AuthenticationResponse,
+    ErrorCode,
+    isNil,
+    Platform,
+} from '@activepieces/shared'
 
 function getClientIdAndSecret(platform: Platform): {
     clientId: string
@@ -17,7 +17,7 @@ function getClientIdAndSecret(platform: Platform): {
     const clientInformation = platform.federatedAuthProviders.github
     assertNotNullOrUndefined(
         clientInformation,
-        'Github information is not configured for this platform',
+        'GitHub information is not configured for this platform',
     )
     return {
         clientId: clientInformation.clientId,
@@ -138,9 +138,9 @@ const getGitHubUserEmail = async (
             params: null,
         })
     }
-    const emails: { primary: boolean, email: string }[] = await response.json()
+    const emails: { primary: boolean, email: string, verified: boolean }[] = await response.json()
 
-    const email = emails.find((email) => email.primary)?.email
+    const email = emails.find((email) => email.primary && email.verified)?.email
     if (!email) {
         throw new Error('Can\'t find email for the github account')
     }

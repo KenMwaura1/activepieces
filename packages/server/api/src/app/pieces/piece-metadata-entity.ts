@@ -1,47 +1,25 @@
 import { EntitySchema } from 'typeorm'
 import {
-    PieceMetadata,
-    PieceMetadataSummary,
-} from '@activepieces/pieces-framework'
+    ApIdSchema,
+    ARRAY_COLUMN_TYPE,
+    BaseColumnSchemaPart,
+    COLLATION,
+    isPostgres,
+    JSON_COLUMN_TYPE,
+} from '../database/database-common'
+import { PieceMetadataModel } from '@activepieces/pieces-framework'
 import {
     ApId,
     BaseModel,
-    PackageType,
-    PieceType,
     Project,
 } from '@activepieces/shared'
-import {
-    ARRAY_COLUMN_TYPE,
-    ApIdSchema,
-    BaseColumnSchemaPart,
-    COLLATION,
-    JSON_COLUMN_TYPE,
-    isPostgres,
-} from '../database/database-common'
-import { Static, Type } from '@sinclair/typebox'
 
-
-const PiecePackageMetadata = Type.Object({
-    projectId: Type.Optional(Type.String()),
-    pieceType: Type.Enum(PieceType),
-    packageType: Type.Enum(PackageType),
-    archiveId: Type.Optional(Type.String()),
-})
-type PiecePackageMetadata = Static<typeof PiecePackageMetadata>
-
-export type PieceMetadataModel = PieceMetadata & PiecePackageMetadata
-
-export const PieceMetadataModelSummary = Type.Union([
-    PieceMetadataSummary,
-    PiecePackageMetadata,
-])
-export type PieceMetadataModelSummary = Static<typeof PieceMetadataModelSummary>
-
-export type PieceMetadataSchema = BaseModel<ApId> & PieceMetadataModel
 
 type PieceMetadataSchemaWithRelations = PieceMetadataSchema & {
     project: Project
 }
+
+export type PieceMetadataSchema = BaseModel<ApId> & PieceMetadataModel
 
 export const PieceMetadataEntity =
   new EntitySchema<PieceMetadataSchemaWithRelations>({
@@ -64,6 +42,11 @@ export const PieceMetadataEntity =
           logoUrl: {
               type: String,
               nullable: false,
+          },
+          projectUsage: {
+              type: Number,
+              nullable: false,
+              default: 0,
           },
           description: {
               type: String,

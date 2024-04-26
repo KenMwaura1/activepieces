@@ -10,7 +10,6 @@ import { Observable, tap, catchError, map } from 'rxjs';
 import {
   FlagService,
   GenericSnackbarTemplateComponent,
-  PieceMetadataModel,
 } from '@activepieces/ui/common';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import {
@@ -19,7 +18,8 @@ import {
   PackageType,
   PieceScope,
 } from '@activepieces/shared';
-import { PieceMetadataService } from '../services/piece-meta.service';
+import { PieceMetadataService } from '../services/piece.service';
+import { PieceMetadataModel } from '@activepieces/pieces-framework';
 
 type AddPackageFormControl = {
   packageType: FormControl<PackageType>;
@@ -58,7 +58,7 @@ export class InstallCommunityPieceModalComponent {
     @Inject(MAT_DIALOG_DATA)
     public data: { scope: PieceScope },
     private fb: FormBuilder,
-    private pieceMetadataService: PieceMetadataService,
+    private pieceService: PieceMetadataService,
     private dialogRef: MatDialogRef<InstallCommunityPieceModalComponent>,
     private snackBar: MatSnackBar,
     private flagService: FlagService
@@ -114,11 +114,8 @@ export class InstallCommunityPieceModalComponent {
       this.loading = true;
       const pieceInfo = this.addPieceForm.getRawValue();
 
-      this.addPieceRequest$ = this.pieceMetadataService
-        .installCommunityPiece({
-          ...pieceInfo,
-          scope: this.data.scope,
-        })
+      this.addPieceRequest$ = this.pieceService
+        .installCommunityPiece({...pieceInfo,scope: this.data.scope,})
         .pipe(
           catchError((err) => {
             this.loading = false;

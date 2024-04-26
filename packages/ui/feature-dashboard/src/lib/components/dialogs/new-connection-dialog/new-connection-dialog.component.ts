@@ -1,4 +1,4 @@
-import { PieceMetadataModelSummary } from '@activepieces/ui/common';
+import { PieceMetadataModelSummary } from '@activepieces/pieces-framework';
 import { PieceMetadataService } from '@activepieces/ui/feature-pieces';
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { FormControl } from '@angular/forms';
@@ -31,7 +31,7 @@ export class NewConnectionDialogComponent {
         this.loading$.next(true);
       }),
       switchMap((searchQuery) => {
-        return this.piecesService.getPiecesManifestFromServer({
+        return this.piecesService.listPieces({
           includeHidden: false,
           searchQuery,
         });

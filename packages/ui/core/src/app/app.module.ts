@@ -5,13 +5,7 @@ import { AppComponent } from './app.component';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { HttpClientModule } from '@angular/common/http';
 import { FontAwesomeModule } from '@fortawesome/angular-fontawesome';
-import {
-  ProjectEffects,
-  UiCommonModule,
-  appConnectionsReducer,
-  environment,
-  projectReducer,
-} from '@activepieces/ui/common';
+import { UiCommonModule, environment } from '@activepieces/ui/common';
 import { JwtModule } from '@auth0/angular-jwt';
 import { NotFoundComponent } from './modules/not-found/not-found.component';
 import { RedirectUrlComponent } from './modules/redirect-url/redirect-url.component';
@@ -29,8 +23,7 @@ import {
   NgxMonacoEditorConfig,
 } from 'ngx-monaco-editor-v2';
 import { apMonacoTheme } from './monaco-themes/ap-monaco-theme';
-import { cobalt2 } from './monaco-themes/cobalt-2-theme';
-import { EeComponentsModule } from '@activepieces/ee-components';
+import { EeComponentsModule } from 'ee-components';
 import { UiFeatureAuthenticationModule } from '@activepieces/ui/feature-authentication';
 import { FormsComponent } from './modules/forms/forms.component';
 import { UiFeaturePiecesModule } from '@activepieces/ui/feature-pieces';
@@ -41,7 +34,6 @@ const monacoConfig: NgxMonacoEditorConfig = {
   onMonacoLoad: () => {
     const monaco = (window as any).monaco;
     monaco.editor.defineTheme('apTheme', apMonacoTheme);
-    monaco.editor.defineTheme('cobalt2', cobalt2);
     const stopImportResolutionError = () => {
       monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions({
         diagnosticCodesToIgnore: [2792],
@@ -74,11 +66,7 @@ export function playerFactory() {
     CommonModule,
     BrowserModule,
     UiFeatureAuthenticationModule,
-    StoreModule.forFeature('commonState', {
-      projectsState: projectReducer,
-      appConnectionsState: appConnectionsReducer,
-    }),
-    EffectsModule.forFeature([ProjectEffects]),
+    EffectsModule.forFeature([]),
     AppRoutingModule,
     BrowserAnimationsModule,
     StoreModule.forRoot({}),
@@ -94,7 +82,10 @@ export function playerFactory() {
       config: {
         tokenGetter,
         allowedDomains: [extractHostname(environment.apiUrl)],
-        disallowedRoutes: [`${environment.apiUrl}/flags`],
+        disallowedRoutes: [
+          `${environment.apiUrl}/flags`,
+          `${environment.apiUrl}/managed-authn/external-token`,
+        ],
       },
     }),
     UiFeaturePiecesModule,

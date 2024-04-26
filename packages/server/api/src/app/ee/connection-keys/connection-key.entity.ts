@@ -1,11 +1,11 @@
 import { EntitySchema } from 'typeorm'
-import { ConnectionKey } from '@activepieces/ee-shared'
-import { Project } from '@activepieces/shared'
 import {
     ApIdSchema,
     BaseColumnSchemaPart,
     JSONB_COLUMN_TYPE,
 } from '../../database/database-common'
+import { ConnectionKey } from '@activepieces/ee-shared'
+import { Project } from '@activepieces/shared'
 
 export type ConnectionKeySchema = {
     project: Project
@@ -31,6 +31,7 @@ export const ConnectionKeyEntity = new EntitySchema<ConnectionKeySchema>({
         project: {
             type: 'many-to-one',
             target: 'project',
+            onDelete: 'CASCADE',
             joinColumn: true,
             inverseSide: 'connectionKeys',
         },

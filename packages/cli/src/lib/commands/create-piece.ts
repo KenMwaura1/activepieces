@@ -60,8 +60,8 @@ const nxGenerateNodeLibrary = async (
     '--buildable',
     '--projectNameAndRootFormat=as-provided',
     '--strict',
-    '--unitTestRunner=none'
-  ].join(' ')
+    '--unitTestRunner=none',
+  ].join(' ');
 
   console.log(chalk.blue(`🛠️ Executing nx command: ${nxGenerateCommand}`));
 
@@ -127,11 +127,20 @@ const updateProjectJsonConfig = async (
   projectJson.targets.build.options.updateBuildableProjectDepsInPackageJson =
     true;
 
-  const lintFilePatterns = projectJson.targets.lint.options.lintFilePatterns;
-  const patternIndex = lintFilePatterns.findIndex((item) =>
-    item.endsWith('package.json')
-  );
-  if (patternIndex !== -1) lintFilePatterns?.splice(patternIndex, 1);
+    const lintFilePatterns = projectJson.targets.lint?.options?.lintFilePatterns;
+
+    if (lintFilePatterns) {
+    const patternIndex = lintFilePatterns.findIndex((item) =>
+      item.endsWith('package.json')
+    );
+    if (patternIndex !== -1) lintFilePatterns?.splice(patternIndex, 1);
+  } else {
+  projectJson.targets.lint = {
+    executor: '@nx/eslint:lint',
+    outputs: ['{options.outputFile}'],
+  };
+}
+
   await writeProjectJson(
     `packages/pieces/${pieceType}/${pieceName}`,
     projectJson
@@ -174,7 +183,6 @@ const createPiece = async (
     )
   );
 };
-
 
 export const createPieceCommand = new Command('create')
   .description('Create a new piece')

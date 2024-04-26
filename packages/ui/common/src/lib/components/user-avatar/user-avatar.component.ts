@@ -1,16 +1,14 @@
 import { ChangeDetectionStrategy, Component, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { AuthenticationService } from '../../service/authentication.service';
-import { ApFlagId, Project } from '@activepieces/shared';
+import { ApFlagId, ProjectWithLimits } from '@activepieces/shared';
 import { Observable, map } from 'rxjs';
 import { FlagService } from '../../service/flag.service';
-import { Store } from '@ngrx/store';
-import { ProjectSelectors } from '../../store/project/project.selector';
 import { LocalesService } from '../../service/locales.service';
 import { LocalesEnum } from '@activepieces/shared';
 import { localesMap } from '../../utils/locales';
-import { PlatformProjectService } from '../../service/platform-project.service';
-
+import { ProjectService } from '../../service/project.service';
+import { showPlatformDashboard$ } from '../../utils/consts';
 @Component({
   selector: 'ap-user-avatar',
   templateUrl: './user-avatar.component.html',
@@ -20,12 +18,11 @@ import { PlatformProjectService } from '../../service/platform-project.service';
 export class UserAvatarComponent implements OnInit {
   showAvatarOuterCircle = false;
   currentUserEmail = '';
-  projects$: Observable<Project[]>;
-  selectedProject$: Observable<Project | undefined>;
+  projects$: Observable<ProjectWithLimits[]>;
+  selectedProject$: Observable<ProjectWithLimits | null>;
   switchProject$: Observable<void>;
   overflownProjectsNames: Record<string, string> = {};
   billingEnabled$: Observable<boolean>;
-  myPiecesEnabled$: Observable<boolean>;
   projectEnabled$: Observable<boolean>;
   showPlatform$: Observable<boolean>;
   showCommunity$: Observable<boolean>;
@@ -39,8 +36,7 @@ export class UserAvatarComponent implements OnInit {
     public authenticationService: AuthenticationService,
     private router: Router,
     private flagService: FlagService,
-    private store: Store,
-    private projectService: PlatformProjectService,
+    private projectService: ProjectService,
     private localesService: LocalesService
   ) {
     this.showCommunity$ = this.flagService.isFlagEnabled(
@@ -49,25 +45,22 @@ export class UserAvatarComponent implements OnInit {
     this.billingEnabled$ = this.flagService.isFlagEnabled(
       ApFlagId.SHOW_BILLING
     );
-    this.myPiecesEnabled$ = this.flagService.isFlagEnabled(
-      ApFlagId.SHOW_COMMUNITY_PIECES
-    );
     this.projectEnabled$ = this.flagService.isFlagEnabled(
       ApFlagId.PROJECT_MEMBERS_ENABLED
     );
-    this.projects$ = this.store.select(ProjectSelectors.selectAllProjects);
-    this.selectedProject$ = this.store.select(
-      ProjectSelectors.selectCurrentProject
-    );
+    this.projects$ = this.projectService
+      .list({
+        limit: 100,
+        cursor: undefined,
+      })
+      .pipe(map((page) => page.data));
+    this.selectedProject$ = this.projectService.currentProject$;
     this.selectedLanguage =
       this.localesService.getCurrentLanguageFromLocalStorageOrDefault();
-    this.showPlatform$ = this.flagService
-      .isFlagEnabled(ApFlagId.SHOW_PLATFORM_DEMO)
-      .pipe(
-        map((isDemo) => {
-          return isDemo || this.authenticationService.isPlatformOwner();
-        })
-      );
+    this.showPlatform$ = showPlatformDashboard$(
+      this.authenticationService,
+      this.flagService
+    );
   }
   ngOnInit(): void {
     this.currentUserEmail = this.authenticationService.currentUser.email;
@@ -82,12 +75,7 @@ export class UserAvatarComponent implements OnInit {
     return `${leftOffset}px`;
   }
 
-  goToDeveloperPage() {
-    this.router.navigate(['settings/my-pieces']);
-  }
-
   logout() {
-    this.router.navigate(['sign-in']);
     this.authenticationService.logout();
   }
 
@@ -96,11 +84,11 @@ export class UserAvatarComponent implements OnInit {
   }
 
   switchProject(projectId: string) {
-    this.switchProject$ = this.projectService.switchProject(projectId);
-  }
-
-  viewPlatformSettings() {
-    this.router.navigate(['/platform']);
+    this.switchProject$ = this.authenticationService.switchProject({
+      projectId,
+      refresh: true,
+      redirectHome: false,
+    });
   }
 
   get userFirstLetter() {

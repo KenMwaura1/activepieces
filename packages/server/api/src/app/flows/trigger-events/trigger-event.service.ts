@@ -1,3 +1,14 @@
+import dayjs from 'dayjs'
+import { LessThan } from 'typeorm'
+import { databaseConnection } from '../../database/database-connection'
+import { engineHelper } from '../../helper/engine-helper'
+import { buildPaginator } from '../../helper/pagination/build-paginator'
+import { paginationHelper } from '../../helper/pagination/pagination-utils'
+import { Order } from '../../helper/pagination/paginator'
+import { webhookService } from '../../webhooks/webhook-service'
+import { flowService } from '../flow/flow.service'
+import { stepFileService } from '../step-file/step-file.service'
+import { TriggerEventEntity } from './trigger-event.entity'
 import {
     ActivepiecesError,
     apId,
@@ -14,17 +25,8 @@ import {
     TriggerHookType,
     TriggerType,
 } from '@activepieces/shared'
-import { databaseConnection } from '../../database/database-connection'
-import { engineHelper } from '../../helper/engine-helper'
-import { buildPaginator } from '../../helper/pagination/build-paginator'
-import { paginationHelper } from '../../helper/pagination/pagination-utils'
-import { Order } from '../../helper/pagination/paginator'
-import { webhookService } from '../../webhooks/webhook-service'
-import { flowService } from '../flow/flow.service'
-import { TriggerEventEntity } from './trigger-event.entity'
-import { stepFileService } from '../step-file/step-file.service'
 
-const triggerEventRepo = databaseConnection.getRepository(TriggerEventEntity)
+export const triggerEventRepo = databaseConnection.getRepository(TriggerEventEntity)
 
 export const triggerEventService = {
     async saveEvent({
@@ -135,6 +137,12 @@ export const triggerEventService = {
         })
         const { data, cursor: newCursor } = await paginator.paginate(query)
         return paginationHelper.createPage<TriggerEvent>(data, newCursor)
+    },
+    async deleteEventsOlderThanFourteenDay(): Promise<void> {
+        const fourteenDayAgo = dayjs().subtract(14, 'day').toDate()
+        await triggerEventRepo.delete({
+            created: LessThan(fourteenDayAgo.toISOString()),
+        })
     },
 }
 

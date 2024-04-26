@@ -1,18 +1,32 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core';
+import {
+  ContactSalesService,
+  FeatureKey,
+} from '../../service/contact-sales.service';
+import { fadeIn400ms } from '../../animation/fade-in.animations';
 
 @Component({
   selector: 'ap-upgrade-note',
   templateUrl: './upgrade-note.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  animations: [fadeIn400ms],
 })
 export class UpgradeNoteComponent {
-  @Input() pricingUrl = 'https://www.activepieces.com/pricing';
   @Input() docsLink = '';
+  @Input({ required: true }) featureNoteTitle = '';
   @Input({ required: true }) featureNote = '';
-  openPricing() {
-    window.open(this.pricingUrl, '_blank', 'noopener noreferrer');
-  }
+  @Input() videoUrl = '';
+  @Input() featureKey: FeatureKey;
+
+  constructor(private contactSalesService: ContactSalesService) {}
+
+  @Input() insideTab = false;
+
   openDocs() {
     window.open(this.docsLink, '_blank', 'noopener noreferrer');
+  }
+
+  openContactSales(): void {
+    this.contactSalesService.open([this.featureKey]);
   }
 }

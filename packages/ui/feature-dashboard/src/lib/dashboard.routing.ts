@@ -3,24 +3,25 @@ import { RunsTableComponent } from './pages/runs-table/runs-table.component';
 import { FlowsTableComponent } from './pages/flows-table/flows-table.component';
 import {
   ARE_THERE_FLOWS_FLAG,
-  AreThereFlowsResovler,
+  AreThereFlowsResolver,
 } from './resolvers/are-there-flows.resolver';
 import { ConnectionsTableComponent } from './pages/connections-table/connections-table.component';
 import { FoldersResolver } from '@activepieces/ui/feature-folders-store';
 import { DashboardContainerComponent } from './dashboard-container.component';
 import {
+  PLATFORM_RESOLVER_KEY,
   isFeatureFlagEnabledResolver,
+  PlatformResolver,
   showBasedOnFlagGuard,
   showBasedOnRoles,
   showPlatformSettingsGuard,
 } from '@activepieces/ui/common';
-import { PlansPageComponent } from '@activepieces/ee-billing-ui';
-import { ProjectMembersTableComponent } from '@activepieces/ee/project-members';
-import { CommunityPiecesTableComponent } from '@activepieces/ui/feature-pieces';
+import { PlansPageComponent } from 'ee-billing-ui';
+import { ProjectMembersTableComponent } from 'ee-project-members';
 import { ApFlagId, ProjectMemberRole } from '@activepieces/shared';
-import { SyncProjectComponent } from './pages/sync-project/sync-project.component';
-import { RepoResolver } from './resolvers/repo.resolver';
 import { ActivityTableComponent } from './pages/activity-table/activity-table.component';
+import { SettingsPageComponent } from './pages/settings-page/settings-page.component';
+import { FLAGS_RESOLVE_DATA, FlagsResolver } from './resolvers/flags.resolver';
 
 export const DashboardLayoutRouting: Routes = [
   {
@@ -80,21 +81,6 @@ export const DashboardLayoutRouting: Routes = [
       },
       {
         data: {
-          title: $localize`My Pieces`,
-        },
-        path: 'settings/my-pieces',
-        canActivate: [
-          showBasedOnFlagGuard(ApFlagId.SHOW_COMMUNITY_PIECES),
-          showBasedOnRoles([
-            ProjectMemberRole.ADMIN,
-            ProjectMemberRole.EDITOR,
-            ProjectMemberRole.VIEWER,
-          ]),
-        ],
-        component: CommunityPiecesTableComponent,
-      },
-      {
-        data: {
           title: $localize`Activity`,
         },
         path: 'activity',
@@ -116,8 +102,11 @@ export const DashboardLayoutRouting: Routes = [
         },
         path: 'settings',
         pathMatch: 'full',
-        component: SyncProjectComponent,
-        resolve: { repo: RepoResolver },
+        component: SettingsPageComponent,
+        resolve: {
+          [FLAGS_RESOLVE_DATA]: FlagsResolver,
+          [PLATFORM_RESOLVER_KEY]: PlatformResolver,
+        },
         canActivate: [
           showBasedOnRoles([
             ProjectMemberRole.ADMIN,
@@ -134,7 +123,7 @@ export const DashboardLayoutRouting: Routes = [
         pathMatch: 'full',
         component: FlowsTableComponent,
         resolve: {
-          [ARE_THERE_FLOWS_FLAG]: AreThereFlowsResovler,
+          [ARE_THERE_FLOWS_FLAG]: AreThereFlowsResolver,
           folders: FoldersResolver,
         },
         canActivate: [
@@ -152,9 +141,7 @@ export const DashboardLayoutRouting: Routes = [
         path: 'platform',
         pathMatch: 'prefix',
         loadChildren: () =>
-          import('@activepieces/ui-ee-platform').then(
-            (res) => res.UiEePlatformModule
-          ),
+          import('ui-ee-platform').then((res) => res.UiEePlatformModule),
         canActivate: [showPlatformSettingsGuard],
       },
     ],

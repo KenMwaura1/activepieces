@@ -1,50 +1,59 @@
-import {
-    KeyAlgorithm,
-    SigningKey,
-    OAuthApp,
-    CustomDomain,
-    CustomDomainStatus,
-    OtpModel,
-    OtpType,
-    OtpState,
-    ProjectMember,
-    ApiKey,
-    ProjectMemberStatus,
-    GitRepo,
-    ApplicationEvent,
-    ApplicationEventName,
-    Activity,
-} from '@activepieces/ee-shared'
-import {
-    UserStatus,
-    User,
-    apId,
-    Project,
-    NotificationStatus,
-    ProjectMemberRole,
-    PieceType,
-    PackageType,
-    Flow,
-    FlowStatus,
-    FlowVersion,
-    TriggerType,
-    FlowVersionState,
-    FlowTemplate,
-    TemplateType,
-    FlowRun,
-    FlowRunStatus,
-    RunEnvironment,
-    Platform,
-    FilteredPieceBehavior,
-} from '@activepieces/shared'
 import { faker } from '@faker-js/faker'
-import { PieceMetadataSchema } from '../../../src/app/pieces/piece-metadata-entity'
 import bcrypt from 'bcrypt'
+import dayjs from 'dayjs'
+import { databaseConnection } from '../../../src/app/database/database-connection'
+import { generateApiKey } from '../../../src/app/ee/api-keys/api-key-service'
 import { OAuthAppWithEncryptedSecret } from '../../../src/app/ee/oauth-apps/oauth-app.entity'
 import { encryptString } from '../../../src/app/helper/encryption'
-import dayjs from 'dayjs'
-import { generateApiKey } from '../../../src/app/ee/api-keys/api-key-service'
-import { databaseConnection } from '../../../src/app/database/database-connection'
+import { PieceMetadataSchema } from '../../../src/app/pieces/piece-metadata-entity'
+import { PieceTagSchema } from '../../../src/app/tags/pieces/piece-tag.entity'
+import { TagEntitySchema } from '../../../src/app/tags/tag-entity'
+import {
+    Activity,
+    ApiKey,
+    ApplicationEvent,
+    ApplicationEventName,
+    CustomDomain,
+    CustomDomainStatus,
+    GitBranchType,
+    GitRepo,
+    KeyAlgorithm,
+    OAuthApp,
+    OtpModel,
+    OtpState,
+    OtpType,
+    ProjectMember,
+    ProjectMemberStatus,
+    SigningKey,
+} from '@activepieces/ee-shared'
+import {
+    apId,
+    File,
+    FileCompression,
+    FileType,
+    FilteredPieceBehavior,
+    Flow,
+    FlowRun,
+    FlowRunStatus,
+    FlowStatus,
+    FlowTemplate,
+    FlowVersion,
+    FlowVersionState,
+    NotificationStatus,
+    PackageType,
+    PiecesFilterType,
+    PieceType,
+    Platform,
+    PlatformRole,
+    Project,
+    ProjectMemberRole,
+    ProjectPlan,
+    RunEnvironment,
+    TemplateType,
+    TriggerType,
+    User,
+    UserStatus,
+} from '@activepieces/shared'
 
 export const CLOUD_PLATFORM_ID = 'cloud-id'
 
@@ -61,9 +70,8 @@ export const createMockUser = (user?: Partial<User>): User => {
         password: user?.password
             ? bcrypt.hashSync(user.password, 10)
             : faker.internet.password(),
-        status: user?.status ?? faker.helpers.enumValue(UserStatus),
-        imageUrl: user?.imageUrl,
-        title: user?.title,
+        status: user?.status ?? faker.helpers.enumValue(UserStatus), 
+        platformRole: user?.platformRole ?? faker.helpers.enumValue(PlatformRole),
         verified: user?.verified ?? faker.datatype.boolean(),
         externalId: user?.externalId,
         platformId: user?.platformId ?? null,
@@ -103,11 +111,28 @@ export const createMockTemplate = (
     }
 }
 
+export const createMockPlan = (plan?: Partial<ProjectPlan>): ProjectPlan => {
+    return {
+        id: plan?.id ?? apId(),
+        created: plan?.created ?? faker.date.recent().toISOString(),
+        updated: plan?.updated ?? faker.date.recent().toISOString(),
+        projectId: plan?.projectId ?? apId(),
+        name: plan?.name ?? faker.lorem.word(),
+        minimumPollingInterval: plan?.minimumPollingInterval ?? 0,
+        connections: plan?.connections ?? 0,
+        pieces: plan?.pieces ?? [],
+        piecesFilterType: plan?.piecesFilterType ?? PiecesFilterType.NONE,
+        teamMembers: plan?.teamMembers ?? 0,
+        tasks: plan?.tasks ?? 0,
+    }
+}
+
 export const createMockProject = (project?: Partial<Project>): Project => {
     return {
         id: project?.id ?? apId(),
         created: project?.created ?? faker.date.recent().toISOString(),
         updated: project?.updated ?? faker.date.recent().toISOString(),
+        deleted: project?.deleted ?? null,
         ownerId: project?.ownerId ?? apId(),
         displayName: project?.displayName ?? faker.lorem.word(),
         notifyStatus:
@@ -120,6 +145,7 @@ export const createMockProject = (project?: Partial<Project>): Project => {
 export const createMockGitRepo = (gitRepo?: Partial<GitRepo>): GitRepo => {
     return {
         id: gitRepo?.id ?? apId(),
+        branchType: faker.helpers.enumValue(GitBranchType),
         created: gitRepo?.created ?? faker.date.recent().toISOString(),
         updated: gitRepo?.updated ?? faker.date.recent().toISOString(),
         projectId: gitRepo?.projectId ?? apId(),
@@ -177,6 +203,7 @@ export const createMockPlatformWithOwner = (
         ...params?.owner,
         id: mockOwnerId,
         platformId: mockPlatformId,
+        platformRole: PlatformRole.ADMIN,
     })
 
     const mockPlatform = createMockPlatform({
@@ -287,11 +314,34 @@ export const createProjectMember = (
     }
 }
 
+export const createMockTag = (tag?: Partial<Omit<TagEntitySchema, 'platform'>>): Omit<TagEntitySchema, 'platform'> => {
+    return {
+        id: tag?.id ?? apId(),
+        created: tag?.created ?? faker.date.recent().toISOString(),
+        updated: tag?.updated ?? faker.date.recent().toISOString(),
+        platformId: tag?.platformId ?? apId(),
+        name: tag?.name ?? faker.lorem.word(),
+    }
+}
+
+
+export const createMockPieceTag = (request: Partial<Omit<PieceTagSchema, 'platform' | 'tag'>>): Omit<PieceTagSchema, 'platform' | 'tag'> => {
+    return {
+        id: request.id ?? apId(),
+        created: request.created ?? faker.date.recent().toISOString(),
+        updated: request.updated ?? faker.date.recent().toISOString(),
+        platformId: request.platformId ?? apId(),
+        pieceName: request.pieceName ?? faker.lorem.word(),
+        tagId: request.tagId ?? apId(),
+    }
+}
+
 export const createMockPieceMetadata = (
     pieceMetadata?: Partial<Omit<PieceMetadataSchema, 'project'>>,
 ): Omit<PieceMetadataSchema, 'project'> => {
     return {
         id: pieceMetadata?.id ?? apId(),
+        projectUsage: 0,
         created: pieceMetadata?.created ?? faker.date.recent().toISOString(),
         updated: pieceMetadata?.updated ?? faker.date.recent().toISOString(),
         name: pieceMetadata?.name ?? faker.lorem.word(),
@@ -433,11 +483,15 @@ export const createMockActivity = (activity?: Partial<Activity>): Activity => {
     }
 }
 
-export const mockBasicSetup = async (): Promise<MockBasicSetup> => {
-    const mockOwner = createMockUser()
+export const mockBasicSetup = async (params?: MockBasicSetupParams): Promise<MockBasicSetup> => {
+    const mockOwner = createMockUser({
+        ...params?.user,
+        platformRole: PlatformRole.ADMIN,
+    })
     await databaseConnection.getRepository('user').save(mockOwner)
 
     const mockPlatform = createMockPlatform({
+        ...params?.platform,
         ownerId: mockOwner.id,
     })
     await databaseConnection.getRepository('platform').save(mockPlatform)
@@ -446,6 +500,7 @@ export const mockBasicSetup = async (): Promise<MockBasicSetup> => {
     await databaseConnection.getRepository('user').save(mockOwner)
 
     const mockProject = createMockProject({
+        ...params?.project,
         ownerId: mockOwner.id,
         platformId: mockPlatform.id,
     })
@@ -455,6 +510,19 @@ export const mockBasicSetup = async (): Promise<MockBasicSetup> => {
         mockOwner,
         mockPlatform,
         mockProject,
+    }
+}
+
+export const createMockFile = (file?: Partial<File>): File => {
+    return {
+        id: file?.id ?? apId(),
+        created: file?.created ?? faker.date.recent().toISOString(),
+        updated: file?.updated ?? faker.date.recent().toISOString(),
+        platformId: file?.platformId ?? apId(),
+        projectId: file?.projectId ?? apId(),
+        compression: file?.compression ?? faker.helpers.enumValue(FileCompression),
+        data: file?.data ?? Buffer.from(faker.lorem.paragraphs()),
+        type: file?.type ?? faker.helpers.enumValue(FileType),
     }
 }
 
@@ -480,4 +548,10 @@ type MockBasicSetup = {
     mockOwner: User
     mockPlatform: Platform
     mockProject: Project
+}
+
+type MockBasicSetupParams = {
+    user?: Partial<User>
+    platform?: Partial<Platform>
+    project?: Partial<Project>
 }

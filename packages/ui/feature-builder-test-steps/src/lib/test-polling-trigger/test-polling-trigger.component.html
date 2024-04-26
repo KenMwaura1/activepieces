@@ -49,7 +49,7 @@
                 <div class="ap-typography-caption ap-text-description ap-my-2" i18n>
                     This sample data can be used in the next steps
                 </div>
-                <ap-json-viewer class="json-viewer" title="Output" [maxHeight]="400"
+                <ap-json-viewer class="json-viewer" title="Output" 
                     [content]="selectedDataControl.value"></ap-json-viewer>
             </ng-container>
             <ng-container *ngIf="currentResults.length === 0  && hasBeenTested">
@@ -85,7 +85,7 @@
     </div>
 </ng-template>
 <ng-container *ngIf="initialHistoricalData$ | async"></ng-container>
-<ng-container *ngIf="initaillySelectedSampleData$ | async"></ng-container>
+<ng-container *ngIf="initiallySelectedSampleData$ | async"></ng-container>
 <ng-container *ngIf="testStep$ | async"></ng-container>
 <ng-container *ngIf="saveNewSelectedData$ | async"></ng-container>
 <ng-container *ngIf="saveAfterNewDataIsLoaded$ | async"></ng-container>

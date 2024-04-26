@@ -1,6 +1,6 @@
 import { EntitySchema } from 'typeorm'
-import { Project, User } from '@activepieces/shared'
 import { BaseColumnSchemaPart } from '../database/database-common'
+import { Project, User } from '@activepieces/shared'
 
 export type UserSchema = User & {
     projects: Project[]
@@ -36,13 +36,9 @@ export const UserEntity = new EntitySchema<UserSchema>({
             type: Boolean,
             nullable: true,
         },
-        imageUrl: {
+        platformRole: {
             type: String,
-            nullable: true,
-        },
-        title: {
-            type: String,
-            nullable: true,
+            nullable: false,
         },
         externalId: {
             type: String,
@@ -63,10 +59,6 @@ export const UserEntity = new EntitySchema<UserSchema>({
             name: 'idx_user_platform_id_external_id',
             columns: ['platformId', 'externalId'],
             unique: true,
-        },
-        {
-            name: 'idx_user_partial_unique_email_platform_id_is_null',
-            synchronize: false,
         },
     ],
     relations: {

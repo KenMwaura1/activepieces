@@ -1,7 +1,7 @@
 import { EntitySchema } from 'typeorm'
-import { Project } from '@activepieces/shared'
-import { ACTIVITY_EVENT_LENGTH, ACTIVITY_MESSAGE_LENGTH, ACTIVITY_STATUS_LENGTH, Activity } from '@activepieces/ee-shared'
 import { ApIdSchema, BaseColumnSchemaPart } from '../../database/database-common'
+import { Activity, ACTIVITY_EVENT_LENGTH, ACTIVITY_MESSAGE_LENGTH, ACTIVITY_STATUS_LENGTH } from '@activepieces/ee-shared'
+import { Project } from '@activepieces/shared'
 
 type ActivitySchema = Activity & {
     project: Project
@@ -44,7 +44,7 @@ export const ActivityEntity = new EntitySchema<ActivitySchema>({
             target: 'project',
             cascade: true,
             onUpdate: 'RESTRICT',
-            onDelete: 'RESTRICT',
+            onDelete: 'CASCADE',
             joinColumn: {
                 name: 'projectId',
                 foreignKeyConstraintName: 'fk_activity_project_id',

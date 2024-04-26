@@ -1,3 +1,23 @@
+import dayjs from 'dayjs'
+import { Equal, FindOperator, ILike } from 'typeorm'
+import { databaseConnection } from '../../database/database-connection'
+import { decryptObject, encryptObject } from '../../helper/encryption'
+import { engineHelper } from '../../helper/engine-helper'
+import { acquireLock } from '../../helper/lock'
+import { buildPaginator } from '../../helper/pagination/build-paginator'
+import { paginationHelper } from '../../helper/pagination/pagination-utils'
+import {
+    getPiecePackage,
+    pieceMetadataService,
+} from '../../pieces/piece-metadata-service'
+import {
+    AppConnectionEntity,
+    AppConnectionSchema,
+} from '../app-connection.entity'
+import { appConnectionsHooks } from './app-connection-hooks'
+import { oauth2Handler } from './oauth2'
+import { oauth2Util } from './oauth2/oauth2-util'
+import { exceptionHandler, logger } from '@activepieces/server-shared'
 import {
     ActivepiecesError,
     apId,
@@ -6,38 +26,38 @@ import {
     AppConnectionStatus,
     AppConnectionType,
     AppConnectionValue,
+    connectionNameRegex,
     Cursor,
     EngineResponseStatus,
     ErrorCode,
+    isNil,
     OAuth2GrantType,
     ProjectId,
     SeekPage,
     UpsertAppConnectionRequestBody,
+    ValidateConnectionNameRequestBody,
+    ValidateConnectionNameResponse,
 } from '@activepieces/shared'
-import { databaseConnection } from '../../database/database-connection'
-import { buildPaginator } from '../../helper/pagination/build-paginator'
-import { paginationHelper } from '../../helper/pagination/pagination-utils'
-import {
-    AppConnectionEntity,
-    AppConnectionSchema,
-} from '../app-connection.entity'
-import { decryptObject, encryptObject } from '../../helper/encryption'
-import { exceptionHandler, logger } from 'server-shared'
-import { isNil } from '@activepieces/shared'
-import { engineHelper } from '../../helper/engine-helper'
-import { acquireLock } from '../../helper/lock'
-import {
-    getPiecePackage,
-    pieceMetadataService,
-} from '../../pieces/piece-metadata-service'
-import { appConnectionsHooks } from './app-connection-hooks'
-import { oauth2Util } from './oauth2/oauth2-util'
-import { oauth2Handler } from './oauth2'
-import dayjs from 'dayjs'
 
 const repo = databaseConnection.getRepository(AppConnectionEntity)
 
 export const appConnectionService = {
+    async validateConnectionName({ connectionName, projectId }: ValidateConnectionNameRequestBody & { projectId: ProjectId }): Promise<ValidateConnectionNameResponse> {
+        //test regex on connection name
+        const regex = new RegExp(`^${connectionNameRegex}$`)
+        if (!regex.test(connectionName)) {
+            return {
+                isValid: false,
+                error: 'Connection name is invalid',
+            }
+        }
+        const connection = await repo.findOneBy({ name: connectionName, projectId })
+        const isValid = isNil(connection)
+        return {
+            isValid,
+            error: isValid ? undefined : 'Connection name already exists',
+        }
+    },
     async upsert(params: UpsertParams): Promise<AppConnection> {
         await appConnectionsHooks
             .getHooks()
@@ -126,6 +146,7 @@ export const appConnectionService = {
         projectId,
         pieceName,
         cursorRequest,
+        name,
         limit,
     }: ListParams): Promise<SeekPage<AppConnection>> {
         const decodedCursor = paginationHelper.decodeCursor(cursorRequest)
@@ -140,11 +161,14 @@ export const appConnectionService = {
             },
         })
 
-        const querySelector: Record<string, string> = {
+        const querySelector: Record<string, string | FindOperator<string>> = {
             projectId,
         }
         if (!isNil(pieceName)) {
-            querySelector.pieceName = pieceName
+            querySelector.pieceName = Equal(pieceName)
+        }
+        if (!isNil(name)) {
+            querySelector.name = ILike(`%${name}%`)
         }
         const queryBuilder = repo
             .createQueryBuilder('app_connection')
@@ -298,7 +322,8 @@ const engineValidateAuth = async (
         throw new ActivepiecesError({
             code: ErrorCode.ENGINE_OPERATION_FAILURE,
             params: {
-                message: 'failed to run validateAuth',
+                message: 'Failed to run engine validate auth',
+                context: engineResponse,
             },
         })
     }
@@ -436,6 +461,7 @@ type ListParams = {
     projectId: ProjectId
     pieceName: string | undefined
     cursorRequest: Cursor | null
+    name: string | undefined
     limit: number
 }
 

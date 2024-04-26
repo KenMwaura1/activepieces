@@ -1,11 +1,11 @@
 import { EntitySchema } from 'typeorm'
-import { AppCredential } from '@activepieces/ee-shared'
-import { Project } from '@activepieces/shared'
 import {
     ApIdSchema,
     BaseColumnSchemaPart,
     JSONB_COLUMN_TYPE,
 } from '../../database/database-common'
+import { AppCredential } from '@activepieces/ee-shared'
+import { Project } from '@activepieces/shared'
 
 export type AppCredentialSchema = {
     project: Project[]
@@ -28,6 +28,7 @@ export const AppCredentialEntity = new EntitySchema<AppCredentialSchema>({
         project: {
             type: 'many-to-one',
             target: 'project',
+            onDelete: 'CASCADE',
             joinColumn: true,
             inverseSide: 'appCredentials',
         },

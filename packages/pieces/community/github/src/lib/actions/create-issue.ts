@@ -12,7 +12,7 @@ export const githubCreateIssueAction = createAction({
   auth: githubAuth,
   name: 'github_create_issue',
   displayName: 'Create Issue',
-  description: 'Create Issue in Github Repository',
+  description: 'Create Issue in GitHub Repository',
   props: {
     repository: githubCommon.repositoryDropdown,
     title: Property.ShortText({
@@ -22,7 +22,7 @@ export const githubCreateIssueAction = createAction({
     }),
     description: Property.LongText({
       displayName: 'Description',
-      description: 'The discription of the issue',
+      description: 'The description of the issue',
       required: false,
     }),
     labels: githubCommon.labelDropDown(),

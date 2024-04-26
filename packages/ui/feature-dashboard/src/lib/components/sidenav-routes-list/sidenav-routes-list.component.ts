@@ -4,21 +4,24 @@ import { Store } from '@ngrx/store';
 import { FolderActions } from '@activepieces/ui/feature-folders-store';
 import {
   AuthenticationService,
+  EmbeddingService,
   NavigationService,
-  PlatformService,
+  UiCommonModule,
 } from '@activepieces/ui/common';
-import { Observable, forkJoin, map, of } from 'rxjs';
+import { Observable, forkJoin, map, of, take } from 'rxjs';
 import { ApFlagId, ProjectMemberRole, supportUrl } from '@activepieces/shared';
 import { DashboardService, FlagService } from '@activepieces/ui/common';
-import { isGitSyncLocked } from '../../resolvers/repo.resolver';
+import { SidenavRouteItemComponent } from '../sidenav-route-item/sidenav-route-item.component';
+import { CommonModule } from '@angular/common';
 
 type SideNavRoute = {
   icon: string;
   caption: string;
-  route: string;
+  route: string | undefined;
   effect?: () => void;
   showInSideNav$: Observable<boolean>;
-  showLock$: Observable<boolean>;
+  showLock$?: Observable<boolean>;
+  showNotification$?: Observable<boolean>;
 };
 
 @Component({
@@ -26,75 +29,101 @@ type SideNavRoute = {
   templateUrl: './sidenav-routes-list.component.html',
   styleUrls: ['./sidenav-routes-list.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  standalone: true,
+  imports: [SidenavRouteItemComponent, CommonModule, UiCommonModule],
 })
 export class SidenavRoutesListComponent implements OnInit {
   logoUrl$: Observable<string>;
-  showSupport$: Observable<boolean>;
-  showDocs$: Observable<boolean>;
-  showBilling$: Observable<boolean>;
   sideNavRoutes$: Observable<SideNavRoute[]>;
   mainDashboardRoutes: SideNavRoute[] = [];
+  skipLocationChange$: Observable<boolean> =
+    this.embeddingService.getSkipLocationChange$();
   demoPlatform$: Observable<boolean> = this.flagService.isFlagEnabled(
     ApFlagId.SHOW_PLATFORM_DEMO
   );
-  platformDashboardRoutes: SideNavRoute[] = [
-    {
-      icon: 'assets/img/custom/dashboard/projects.svg',
-      caption: $localize`Projects`,
-      route: 'platform/projects',
-      showInSideNav$: of(true),
-      showLock$: this.demoPlatform$,
-    },
-    {
-      icon: 'assets/img/custom/dashboard/appearance.svg',
-      caption: $localize`Appearance`,
-      route: 'platform/appearance',
-      showInSideNav$: of(true),
-      showLock$: this.demoPlatform$,
-    },
-    {
-      icon: 'assets/img/custom/dashboard/pieces.svg',
-      caption: $localize`Pieces`,
-      route: 'platform/pieces',
-      showInSideNav$: of(true),
-      showLock$: this.demoPlatform$,
-    },
-    {
-      icon: 'assets/img/custom/dashboard/templates.svg',
-      caption: $localize`Templates`,
-      route: 'platform/templates',
-      showInSideNav$: of(true),
-      showLock$: this.demoPlatform$,
-    },
-    {
-      icon: 'assets/img/custom/dashboard/users.svg',
-      caption: $localize`Users`,
-      route: 'platform/users',
-      showInSideNav$: of(true),
-      showLock$: this.demoPlatform$,
-    },
+  isVersionMatch$?: Observable<boolean>;
 
-    {
-      icon: 'assets/img/custom/dashboard/settings.svg',
-      caption: $localize`Settings`,
-      route: 'platform/settings',
-      showInSideNav$: of(true),
-      showLock$: this.demoPlatform$,
+  readonly supportRoute: SideNavRoute = {
+    caption: 'Support',
+    icon: 'assets/img/custom/support.svg',
+    route: undefined,
+    showInSideNav$: this.flagServices.isFlagEnabled(ApFlagId.SHOW_COMMUNITY),
+    showLock$: of(false),
+    effect: () => {
+      this.openSupport();
     },
-  ];
+  };
+  readonly docsRoute: SideNavRoute = {
+    caption: 'Docs',
+    icon: 'assets/img/custom/dashboard/documentation.svg',
+    route: undefined,
+    showInSideNav$: this.flagServices.isFlagEnabled(ApFlagId.SHOW_DOCS),
+    showLock$: of(false),
+    effect: () => {
+      this.openDocs();
+    },
+  };
+  platformDashboardRoutes: SideNavRoute[] = [];
   constructor(
     public router: Router,
     private store: Store,
     private flagServices: FlagService,
     private dashboardService: DashboardService,
     private navigationService: NavigationService,
+    private embeddingService: EmbeddingService,
     private authenticationService: AuthenticationService,
-    private platformService: PlatformService,
     private flagService: FlagService
   ) {
     this.logoUrl$ = this.flagServices
       .getLogos()
       .pipe(map((logos) => logos.logoIconUrl));
+    this.isVersionMatch$ = this.flagService.isVersionMatch();
+
+    this.platformDashboardRoutes = [
+      {
+        icon: 'assets/img/custom/dashboard/projects.svg',
+        caption: $localize`Projects`,
+        route: 'platform/projects',
+        showInSideNav$: of(true),
+        showLock$: this.demoPlatform$,
+      },
+      {
+        icon: 'assets/img/custom/dashboard/appearance.svg',
+        caption: $localize`Appearance`,
+        route: 'platform/appearance',
+        showInSideNav$: of(true),
+        showLock$: this.demoPlatform$,
+      },
+      {
+        icon: 'assets/img/custom/dashboard/pieces.svg',
+        caption: $localize`Pieces`,
+        route: 'platform/pieces',
+        showInSideNav$: of(true),
+        showLock$: this.demoPlatform$,
+      },
+      {
+        icon: 'assets/img/custom/dashboard/templates.svg',
+        caption: $localize`Templates`,
+        route: 'platform/templates',
+        showInSideNav$: of(true),
+        showLock$: this.demoPlatform$,
+      },
+      {
+        icon: 'assets/img/custom/dashboard/users.svg',
+        caption: $localize`Users`,
+        route: 'platform/users',
+        showInSideNav$: of(true),
+        showLock$: of(false),
+      },
+      {
+        icon: 'assets/img/custom/dashboard/settings.svg',
+        caption: $localize`Settings`,
+        route: 'platform/settings',
+        showInSideNav$: of(true),
+        showLock$: of(false),
+        showNotification$: this.isVersionMatch$,
+      },
+    ];
     this.mainDashboardRoutes = [
       {
         icon: 'assets/img/custom/dashboard/flows.svg',
@@ -133,7 +162,10 @@ export class SidenavRoutesListComponent implements OnInit {
         icon: 'assets/img/custom/dashboard/members.svg',
         caption: $localize`Team`,
         route: 'team',
-        showInSideNav$: of(true),
+        showInSideNav$: this.embeddingService.getIsInEmbedding$().pipe(
+          take(1),
+          map((isInEmbedding) => !isInEmbedding)
+        ),
         showLock$: this.flagService
           .isFlagEnabled(ApFlagId.PROJECT_MEMBERS_ENABLED)
           .pipe(map((enabled) => !enabled)),
@@ -143,21 +175,15 @@ export class SidenavRoutesListComponent implements OnInit {
         icon: 'assets/img/custom/dashboard/settings.svg',
         caption: $localize`Settings`,
         route: 'settings',
-        showInSideNav$: this.flagServices.isFlagEnabled(ApFlagId.SHOW_GIT_SYNC),
-        showLock$: isGitSyncLocked(
-          this.flagServices,
-          this.platformService,
-          this.authenticationService.getPlatformId()
+        showInSideNav$: this.embeddingService.getIsInEmbedding$().pipe(
+          take(1),
+          map((isInEmbedding) => !isInEmbedding)
         ),
+        showLock$: of(false),
       },
     ];
   }
   ngOnInit(): void {
-    this.showDocs$ = this.flagServices.isFlagEnabled(ApFlagId.SHOW_DOCS);
-    this.showSupport$ = this.flagServices.isFlagEnabled(
-      ApFlagId.SHOW_COMMUNITY
-    );
-    this.showBilling$ = this.flagServices.isFlagEnabled(ApFlagId.SHOW_BILLING);
     this.sideNavRoutes$ = this.dashboardService.getIsInPlatformRoute().pipe(
       map((isInPlatformDashboard) => {
         if (!isInPlatformDashboard) {
@@ -174,8 +200,11 @@ export class SidenavRoutesListComponent implements OnInit {
   openDocs() {
     window.open('https://activepieces.com/docs', '_blank', 'noopener');
   }
-  redirectHome(newWindow: boolean) {
-    this.navigationService.navigate('/flows', newWindow);
+  redirectHome(openInNewWindow: boolean) {
+    this.navigationService.navigate({
+      route: ['/flows'],
+      openInNewWindow,
+    });
   }
 
   public isActive(route: string) {
@@ -207,11 +236,12 @@ export class SidenavRoutesListComponent implements OnInit {
 
   private isRouteAllowedForRole(
     role: ProjectMemberRole | null | undefined,
-    route: string
+    route?: string
   ) {
-    if (role === undefined || role === null) {
+    if (role === undefined || role === null || route === undefined) {
       return of(true);
     }
+
     switch (role) {
       case ProjectMemberRole.ADMIN:
       case ProjectMemberRole.EDITOR:

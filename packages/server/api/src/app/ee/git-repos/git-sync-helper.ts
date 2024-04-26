@@ -1,11 +1,12 @@
-import { Flow, FlowOperationType, PopulatedFlow } from '@activepieces/shared'
 import fs from 'fs/promises'
 import path from 'path'
-import { projectService } from '../../project/project-service'
 import { flowRepo } from '../../flows/flow/flow.repo'
 import { flowService } from '../../flows/flow/flow.service'
-import { ProjectMappingState } from './operations/sync-operations'
+import { projectService } from '../../project/project-service'
+import { GitFile } from './project-diff/project-diff.service'
+import { ProjectMappingState } from './project-diff/project-mapping-state'
 import { ProjectSyncError } from '@activepieces/ee-shared'
+import { Flow, FlowOperationType, PopulatedFlow } from '@activepieces/shared'
 
 
 async function getStateFromDB(projectId: string): Promise<PopulatedFlow[]> {
@@ -27,7 +28,7 @@ async function getMappingStateFromGit(
     stateFolderPath: string,
     projectId: string,
 ): Promise<ProjectMappingState> {
-    const _statePath = path.join(stateFolderPath, projectId + '.json')    
+    const _statePath = path.join(stateFolderPath, projectId + '.json')
     try {
         const state = await fs.readFile(_statePath, 'utf-8')
         return new ProjectMappingState(JSON.parse(state))
@@ -37,37 +38,39 @@ async function getMappingStateFromGit(
     }
 }
 
-async function getStateFromGit(
-    flowPath: string,
-): Promise<PopulatedFlow[]> {
+async function getStateFromGit(flowPath: string): Promise<GitFile[]> {
     const flowFiles = await fs.readdir(flowPath)
-    const parsedFlows = []
+    const parsedFlows: GitFile[] = []
     for (const file of flowFiles) {
+        // Extract base file name
         const flow: PopulatedFlow = JSON.parse(
             await fs.readFile(path.join(flowPath, file), 'utf-8'),
         )
-        parsedFlows.push(flow)
+        parsedFlows.push({
+            flow,
+            baseFilename: path.basename(file, '.json'),
+        })
     }
     return parsedFlows
 }
 
 async function createFlowInProject(flow: PopulatedFlow, projectId: string): Promise<PopulatedFlow> {
-    return flowService.create({
+    const createdFlow = await flowService.create({
         projectId,
         request: {
             displayName: flow.version.displayName,
-            folderId: flow.folderId ?? undefined,
             projectId,
         },
     })
+    return updateFlowInProject(createdFlow.id, flow, projectId)
 }
 
-async function updateFlowInProject(flowId: string, flow: PopulatedFlow,
+async function updateFlowInProject(targetFlowId: string, flow: PopulatedFlow,
     projectId: string,
 ): Promise<PopulatedFlow> {
     const project = await projectService.getOneOrThrow(projectId)
     return flowService.update({
-        id: flowId,
+        id: targetFlowId,
         projectId,
         lock: true,
         userId: project.ownerId,
@@ -81,7 +84,7 @@ async function updateFlowInProject(flowId: string, flow: PopulatedFlow,
     })
 }
 
-async function republishFlow(flowId: string, projectId: string): Promise<ProjectSyncError |  null> {
+async function republishFlow(flowId: string, projectId: string): Promise<ProjectSyncError | null> {
     const project = await projectService.getOneOrThrow(projectId)
     const flow = await flowService.getOnePopulated({ id: flowId, projectId })
     if (!flow) {
@@ -114,19 +117,9 @@ async function republishFlow(flowId: string, projectId: string): Promise<Project
     }
 
 }
-
-async function upsertFlowToGit(flow: Flow, flowFolderPath: string): Promise<void> {
-    const flowJsonPath = path.join(flowFolderPath, `${flow.id}.json`)
+async function upsertFlowToGit(fileName: string, flow: Flow, flowFolderPath: string): Promise<void> {
+    const flowJsonPath = path.join(flowFolderPath, `${fileName}.json`)
     await fs.writeFile(flowJsonPath, JSON.stringify(flow, null, 2))
-}
-
-async function saveStateToGit(
-    stateFolderPath: string,
-    projectId: string,
-    mappingState: ProjectMappingState,
-): Promise<void> {
-    const statePath = path.join(stateFolderPath, projectId + '.json')
-    await fs.writeFile(statePath, JSON.stringify(mappingState, null, 2))
 }
 
 async function deleteFlowFromGit(flowId: string, flowFolderPath: string): Promise<void> {
@@ -152,12 +145,6 @@ export const gitSyncHelper = {
     createFlowInProject,
     updateFlowInProject,
     republishFlow,
-    saveStateToGit,
-}
-
-type DeleteFlowFromGitOperation = {
-    type: 'delete_flow_from_git'
-    flowId: string
 }
 
 type DeleteFlowFromProjectOperation = {
@@ -170,13 +157,7 @@ type UpsertFlowIntoProjectOperation = {
     flow: PopulatedFlow
 }
 
-type UpsertFlowOperation = {
-    type: 'upsert_flow_into_git'
-    flow: PopulatedFlow
-}
 
 export type FlowSyncOperation =
-    | DeleteFlowFromGitOperation
     | UpsertFlowIntoProjectOperation
     | DeleteFlowFromProjectOperation
-    | UpsertFlowOperation

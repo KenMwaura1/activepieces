@@ -1,10 +1,11 @@
-import {
-    ProjectPlan, apId,
-} from '@activepieces/shared'
-import { ProjectPlanEntity } from './project-plan.entity'
+import { isNil } from 'lodash'
 import { databaseConnection } from '../../database/database-connection'
-import dayjs from 'dayjs'
-import { FlowPlanLimits, DEFAULT_FREE_PLAN_LIMIT } from '@activepieces/ee-shared'
+import { ProjectPlanEntity } from './project-plan.entity'
+import { DEFAULT_FREE_PLAN_LIMIT, FlowPlanLimits } from '@activepieces/ee-shared'
+import {
+    ActivepiecesError,
+    apId, ErrorCode, ProjectPlan,
+} from '@activepieces/shared'
 
 const projectPlanRepo =
     databaseConnection.getRepository<ProjectPlan>(ProjectPlanEntity)
@@ -19,7 +20,9 @@ export const projectLimitsService = {
             await projectPlanRepo.update(existingPlan.id, {
                 tasks: planLimits.tasks,
                 teamMembers: planLimits.teamMembers,
-                flowPlanName: planLimits.nickname,
+                name: planLimits.nickname,
+                pieces: planLimits.pieces,
+                piecesFilterType: planLimits.piecesFilterType,
                 minimumPollingInterval: planLimits.minimumPollingInterval,
                 connections: planLimits.connections,
             })
@@ -48,6 +51,21 @@ export const projectLimitsService = {
         }
         return projectPlanRepo.findOneByOrFail({ projectId })
     },
+    async getPiecesFilter(projectId: string): Promise<Pick<ProjectPlan, 'piecesFilterType' | 'pieces'>> {
+        const plan = await projectPlanRepo.createQueryBuilder().select(['"piecesFilterType"', 'pieces']).where('"projectId" = :projectId', { projectId }).getRawOne()
+        if (isNil(plan)) {
+            throw new ActivepiecesError({
+                code: ErrorCode.ENTITY_NOT_FOUND,
+                params: {
+                    message: `Project plan not found for project id: ${projectId}`,
+                },
+            })
+        }
+        return {
+            piecesFilterType: plan.piecesFilterType,
+            pieces: plan.pieces,
+        }
+    },
 }
 
 
@@ -55,12 +73,13 @@ async function createDefaultPlan(projectId: string, flowPlanLimit: FlowPlanLimit
     await projectPlanRepo.upsert({
         id: apId(),
         projectId,
+        pieces: flowPlanLimit.pieces,
+        piecesFilterType: flowPlanLimit.piecesFilterType,
         tasks: flowPlanLimit.tasks,
         teamMembers: flowPlanLimit.teamMembers,
-        subscriptionStartDatetime: dayjs().toISOString(),
         minimumPollingInterval: flowPlanLimit.minimumPollingInterval,
         connections: flowPlanLimit.connections,
-        flowPlanName: flowPlanLimit.nickname,
+        name: flowPlanLimit.nickname,
     }, ['projectId'])
 
     return projectPlanRepo.findOneByOrFail({ projectId })

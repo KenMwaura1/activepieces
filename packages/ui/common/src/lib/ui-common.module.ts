@@ -1,7 +1,5 @@
 import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { MarkdownComponent } from './components/markdown/markdown.component';
-import { MarkdownModule, MarkedOptions, MarkedRenderer } from 'ngx-markdown';
 import { EditableTextComponent } from './components/editable-text/editable-text.component';
 import {
   MatTooltipDefaultOptions,
@@ -60,7 +58,6 @@ import { NgxColorsModule } from 'ngx-colors';
 import { PageTitleComponent } from './components/page-title/page-title.component';
 import { PoweredByActivepiecesComponent } from './components/powered-by-activepieces/powered-by-activepieces.component';
 import { MatSliderModule } from '@angular/material/slider';
-import { CommaSeparatedPipe } from './pipe/comma-seperated.pipe';
 import { MatSnackBarModule } from '@angular/material/snack-bar';
 import { ImgFallbackDirective } from './directives/image-fallback.directive';
 import { MAT_SNACK_BAR_DEFAULT_OPTIONS } from '@angular/material/snack-bar';
@@ -73,6 +70,16 @@ import { ImportFlowDialogComponent } from './components/dialogs/import-flow-dial
 import { MonacoEditorModule } from 'ngx-monaco-editor-v2';
 import { LetterIconComponent } from './components/letter-icon/letter-icon.component';
 import { MatListModule } from '@angular/material/list';
+import { MatPseudoCheckboxModule } from '@angular/material/core';
+import { ControlDescriptionComponent } from './components/control-description/control-description.component';
+import { MatChipsModule } from '@angular/material/chips';
+import { ApChipsListComponent } from './components/ap-chips-list/ap-chips-list.component';
+import { ApMarkdownComponent } from './components';
+import { CommaSeparatedPipe } from './pipe/comma-separated.pipe';
+import { MARKED_OPTIONS, MarkdownModule, MarkedRenderer } from 'ngx-markdown';
+import { AbstractFormControlCasterPipe } from './pipe/abstract-form-control-caster.pipe';
+import { VersionHistoryIndicatorComponent } from './components/ap-version-status-indicator/ap-version-history-indicator.component';
+import { InsideBuilderDatePipe } from './pipe/inside-builder-date.pipe';
 
 const exportedImports = [
   CommonModule,
@@ -82,6 +89,7 @@ const exportedImports = [
   ReactiveFormsModule,
   MatSelectModule,
   MatInputModule,
+  MatChipsModule,
   MatMenuModule,
   MatButtonModule,
   MatCardModule,
@@ -102,11 +110,17 @@ const exportedImports = [
   ScrollingModule,
   MonacoEditorModule,
   MatListModule,
+  MatPseudoCheckboxModule,
+  CheckOverflowDirective,
+  ControlDescriptionComponent,
+  AbstractFormControlCasterPipe,
+  VersionHistoryIndicatorComponent,
+  InsideBuilderDatePipe,
 ];
 const exportedDeclarations = [
   UploadFileControlComponent,
   ElementDirective,
-  MarkdownComponent,
+  ApMarkdownComponent,
   EditableTextComponent,
   ApButtonComponent,
   WarningBoxComponent,
@@ -133,7 +147,7 @@ const exportedDeclarations = [
   UserAvatarComponent,
   TrackHoverDirective,
   DragDropDirective,
-  CheckOverflowDirective,
+  ApChipsListComponent,
   PageTitleComponent,
   PoweredByActivepiecesComponent,
   ImgFallbackDirective,
@@ -150,7 +164,7 @@ export const materialTooltipDefaults: MatTooltipDefaultOptions = {
   touchendHideDelay: 0,
 };
 
-export function markedOptionsFactory(): MarkedOptions {
+export function markedOptionsFactory() {
   const renderer = new MarkedRenderer();
   const linkRenderer = renderer.link;
 
@@ -176,7 +190,7 @@ export function markedOptionsFactory(): MarkedOptions {
     ...exportedImports,
     MarkdownModule.forRoot({
       markedOptions: {
-        provide: MarkedOptions,
+        provide: MARKED_OPTIONS,
         useFactory: markedOptionsFactory,
       },
     }),

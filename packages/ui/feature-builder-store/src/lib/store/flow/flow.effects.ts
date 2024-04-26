@@ -40,7 +40,7 @@ import {
   FlowService,
   environment,
   FlowBuilderService,
-  appConnectionsActions,
+  extractInitialPieceStepValuesAndValidity,
 } from '@activepieces/ui/common';
 import { canvasActions } from '../builder/canvas/canvas.action';
 import { ViewModeActions } from '../builder/viewmode/view-mode.action';
@@ -66,28 +66,72 @@ export class FlowsEffects {
       })
     );
   });
-  initialiseConnectionsState$ = createEffect(() => {
+
+  newTriggerOrActionSelected$ = createEffect(() => {
     return this.actions$.pipe(
-      ofType(BuilderActions.loadInitial),
-      switchMap(({ appConnections }) => {
-        return of(
-          appConnectionsActions.loadInitial({ connections: appConnections })
-        );
-      }),
-      catchError((err) => {
-        console.error(err);
-        throw err;
+      ofType(FlowsActions.newTriggerOrActionSelected),
+      concatLatestFrom(() =>
+        this.store.select(BuilderSelectors.selectCurrentStep)
+      ),
+      switchMap(([{ displayName, name, properties }, step]) => {
+        if (step) {
+          const { initialValues, valid } =
+            extractInitialPieceStepValuesAndValidity(properties);
+          if (step.type === TriggerType.PIECE) {
+            // TODO fix this for piece schedule
+            const sampleData =
+              step.settings.pieceName === '@activepieces/piece-schedule'
+                ? {}
+                : undefined;
+            return of(
+              FlowsActions.updateTrigger({
+                operation: {
+                  ...step,
+                  displayName,
+                  settings: {
+                    ...step.settings,
+                    triggerName: name,
+                    input: initialValues,
+                    inputUiInfo: {
+                      currentSelectedData: sampleData,
+                      customizedInputs: {},
+                    },
+                  },
+                  valid: valid,
+                },
+              })
+            );
+          } else if (step.type === ActionType.PIECE) {
+            return of(
+              FlowsActions.updateAction({
+                operation: {
+                  ...step,
+                  displayName,
+                  settings: {
+                    ...step.settings,
+                    actionName: name,
+                    input: initialValues,
+                    inputUiInfo: {
+                      customizedInputs: {},
+                    },
+                  },
+                  valid: valid,
+                },
+              })
+            );
+          }
+        }
+        return EMPTY;
       })
     );
   });
-
   replaceTrigger$ = createEffect(() => {
     return this.actions$.pipe(
       ofType(FlowsActions.updateTrigger),
       concatLatestFrom(() =>
         this.store.select(BuilderSelectors.selectCurrentFlow)
       ),
-      switchMap(([action, flow]) => {
+      switchMap(([_, flow]) => {
         return of(
           canvasActions.selectStepByName({
             stepName: flow.version.trigger.name,
@@ -231,8 +275,16 @@ export class FlowsEffects {
       ofType(...SingleFlowModifyingState),
       concatLatestFrom(() => [
         this.store.select(BuilderSelectors.selectCurrentFlow),
+        this.store.select(BuilderSelectors.selectReadOnly),
       ]),
-      concatMap(([action, flow]) => {
+      concatMap(([action, flow, isReadonly]) => {
+        if (isReadonly) {
+          console.error(
+            'Activepieces: Trying to modify a readonly flow',
+            action
+          );
+          return EMPTY;
+        }
         const genSavedId = UUID.UUID();
         let flowOperation: FlowOperationRequest;
         switch (action.type) {
