@@ -12,7 +12,6 @@ import posthog from 'posthog-js';
 import { FlagService } from '../service/flag.service';
 import { Observable, map, of, switchMap, take } from 'rxjs';
 import { HttpClient } from '@angular/common/http';
-import { AuthenticationService } from './authentication.service';
 import { productFruits } from 'product-fruits';
 
 @Injectable({
@@ -22,11 +21,7 @@ export class TelemetryService {
   productFruitsInitialized = false;
   analytics: AnalyticsBrowser;
 
-  constructor(
-    private flagService: FlagService,
-    private http: HttpClient,
-    private authService: AuthenticationService
-  ) {}
+  constructor(private flagService: FlagService, private http: HttpClient) {}
 
   init(user: UserWithoutPassword) {
     this.flagService.getAllFlags().subscribe((flags) => {
@@ -72,6 +67,12 @@ export class TelemetryService {
     });
   }
 
+  reset() {
+    if (this.analytics) {
+      this.analytics.reset();
+    }
+  }
+
   capture(event: TelemetryEvent) {
     this.flagService
       .getAllFlags()
@@ -100,6 +101,7 @@ export class TelemetryService {
     search: string;
     target: 'steps' | 'triggers' | 'both';
     insideTemplates: boolean;
+    email: string;
   }) {
     return this.isTelemetryEnabled().pipe(
       switchMap((isTelemetryEnabled) => {
@@ -110,30 +112,11 @@ export class TelemetryService {
           'https://cloud.activepieces.com/api/v1/webhooks/C6khe7pYMdiLPrBpVIWZg',
           {
             ...request,
-            email: this.authService.currentUser.email,
+            email: request.email,
           }
         );
       })
     );
-  }
-
-  saveCopilotResult(request: { prompt: string; code: string }) {
-    this.isTelemetryEnabled()
-      .pipe(
-        switchMap((isTelemetryEnabled) => {
-          if (!isTelemetryEnabled) {
-            return of(false);
-          }
-          return this.http.post(
-            'https://cloud.activepieces.com/api/v1/webhooks/AOyJBLfd3Hvgwk6OdeDSq',
-            {
-              ...request,
-              email: this.authService.currentUser.email,
-            }
-          );
-        })
-      )
-      .subscribe();
   }
 
   private isTelemetryEnabled(): Observable<boolean> {

@@ -1,3 +1,8 @@
+import {
+    Flow,
+    FlowRun,
+    Project,
+} from '@activepieces/shared'
 import { EntitySchema } from 'typeorm'
 import {
     ApIdSchema,
@@ -7,11 +12,6 @@ import {
     JSONB_COLUMN_TYPE,
     TIMESTAMP_COLUMN_TYPE,
 } from '../../database/database-common'
-import {
-    Flow,
-    FlowRun,
-    Project,
-} from '@activepieces/shared'
 
 type FlowRunSchema = FlowRun & {
     project: Project
@@ -44,6 +44,10 @@ export const FlowRunEntity = new EntitySchema<FlowRunSchema>({
             type: ARRAY_COLUMN_TYPE,
             array: isPostgres(),
             nullable: true,
+        },
+        duration: {
+            nullable: true,
+            type: Number,
         },
         tasks: {
             nullable: true,

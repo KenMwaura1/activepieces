@@ -18,9 +18,10 @@ import {
   ConfirmActionDialogData,
   EmbeddingService,
   FLOW_QUERY_PARAM,
+  FlagService,
   LIMIT_QUERY_PARAM,
   NavigationService,
-  STATUS_QUERY_PARAM,
+  ProjectService,
   TelemetryService,
   UiCommonModule,
   executionsPageFragments,
@@ -28,13 +29,24 @@ import {
 import { ActivatedRoute } from '@angular/router';
 import { PopulatedIssue } from '@activepieces/ee-shared';
 import {
-  FlowRunStatus,
+  ApEdition,
+  NotificationStatus,
+  ProjectId,
   TelemetryEventName,
   spreadIfDefined,
 } from '@activepieces/shared';
 import { MatDialog } from '@angular/material/dialog';
-import { BehaviorSubject, Observable, tap } from 'rxjs';
+import {
+  BehaviorSubject,
+  Observable,
+  distinctUntilChanged,
+  map,
+  switchMap,
+  take,
+  tap,
+} from 'rxjs';
 import { CommonModule } from '@angular/common';
+import { FormControl } from '@angular/forms';
 
 @Component({
   selector: 'app-issues-table',
@@ -50,8 +62,18 @@ export class IssuesTableComponent implements OnInit {
   @ViewChild(ApPaginatorComponent, { static: true })
   paginator: ApPaginatorComponent;
   dataSource: IssuesDataSource;
-  displayedColumns: string[] = ['name', 'count', 'lastOccurrence', 'action'];
+  displayedColumns: string[] = [
+    'name',
+    'count',
+    'firstSeen',
+    'lastSeen',
+    'action',
+  ];
   resolve$: Observable<unknown>;
+  currentProject: ProjectId;
+  updateNotificationsValue$: Observable<unknown>;
+  nonCommunityEdition$: Observable<boolean>;
+  toggleNotificationFormControl: FormControl<boolean> = new FormControl();
   refresh$ = new BehaviorSubject<boolean>(true);
   readonly upgradeNoteTitle = $localize`Unlock Issues`;
   readonly upgradeNote = $localize`Centralized issue tracking without digging through pages of flow runs.`;
@@ -64,15 +86,41 @@ export class IssuesTableComponent implements OnInit {
     private navigationService: NavigationService,
     private matDialog: MatDialog,
     private telemetryService: TelemetryService,
-    private embeddingService: EmbeddingService
+    private embeddingService: EmbeddingService,
+    private flagsService: FlagService,
+    private projectService: ProjectService
   ) {}
   ngOnInit(): void {
+    this.currentProject = this.authService.getProjectId();
     this.dataSource = new IssuesDataSource(
       this.route.queryParams,
       this.paginator,
       this.issuesService,
       this.authService.getProjectId(),
       this.refresh$.asObservable()
+    );
+    this.nonCommunityEdition$ = this.flagsService
+      .getEdition()
+      .pipe(map((res) => res !== ApEdition.COMMUNITY));
+    this.updateNotificationsValue$ = this.projectService.currentProject$.pipe(
+      take(1),
+      tap((project) => {
+        this.toggleNotificationFormControl.setValue(
+          project?.notifyStatus === NotificationStatus.ALWAYS
+        );
+      }),
+      switchMap(() => {
+        return this.toggleNotificationFormControl.valueChanges.pipe(
+          distinctUntilChanged(),
+          switchMap((value) => {
+            return this.projectService.update(this.currentProject, {
+              notifyStatus: value
+                ? NotificationStatus.ALWAYS
+                : NotificationStatus.NEVER,
+            });
+          })
+        );
+      })
     );
   }
 
@@ -92,7 +140,6 @@ export class IssuesTableComponent implements OnInit {
           fragment: executionsPageFragments.Runs,
           queryParams: {
             [FLOW_QUERY_PARAM]: issue.flowId,
-            [STATUS_QUERY_PARAM]: FlowRunStatus.FAILED,
           },
         },
         openInNewWindow,

@@ -1,21 +1,23 @@
 import {
-    FastifyPluginCallbackTypebox,
-    Type,
-} from '@fastify/type-provider-typebox'
-import { StatusCodes } from 'http-status-codes'
-import { flowRunService } from './flow-run-service'
-import {
     ALL_PRINCIPAL_TYPES,
     ApId,
     assertNotNullOrUndefined,
     ExecutionType,
     FlowRun,
     ListFlowRunsRequestQuery,
+    Permission,
     PrincipalType,
+    ProgressUpdateType,
     RetryFlowRequestBody,
     SeekPage,
 
     SERVICE_KEY_SECURITY_OPENAPI } from '@activepieces/shared'
+import {
+    FastifyPluginCallbackTypebox,
+    Type,
+} from '@fastify/type-provider-typebox'
+import { StatusCodes } from 'http-status-codes'
+import { flowRunService } from './flow-run-service'
 
 const DEFAULT_PAGING_LIMIT = 10
 
@@ -58,11 +60,12 @@ export const flowRunController: FastifyPluginCallbackTypebox = (
         await flowRunService.addToQueue({
             flowRunId: req.params.id,
             requestId: req.params.requestId,
-            resumePayload: {
+            payload: {
                 body: req.body,
                 headers,
                 queryParams,
             },
+            progressUpdateType: ProgressUpdateType.TEST_FLOW,
             executionType: ExecutionType.RESUME,
         })
     })
@@ -78,6 +81,7 @@ export const flowRunController: FastifyPluginCallbackTypebox = (
 }
 
 const FlowRunFiltered = Type.Omit(FlowRun, ['logsFileId', 'terminationReason', 'pauseMetadata'])
+const FlowRunFilteredWithNoSteps = Type.Omit(FlowRun, ['logsFileId', 'terminationReason', 'pauseMetadata', 'steps'])
 
 const ListRequest = {
     config: {
@@ -89,7 +93,7 @@ const ListRequest = {
         security: [SERVICE_KEY_SECURITY_OPENAPI],
         querystring: ListFlowRunsRequestQuery,
         response: {
-            [StatusCodes.OK]: SeekPage(Type.Omit(FlowRunFiltered, ['steps'])),
+            [StatusCodes.OK]: SeekPage(FlowRunFilteredWithNoSteps),
         },
     },
 }
@@ -124,10 +128,14 @@ const ResumeFlowRunRequest = {
 }
 
 const RetryFlowRequest = {
+    config: {
+        permission: Permission.RETRY_RUN,
+    },
     schema: {
         params: Type.Object({
             id: ApId,
         }),
         querystring: RetryFlowRequestBody,
+         
     },
 }

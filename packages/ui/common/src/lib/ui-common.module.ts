@@ -61,6 +61,7 @@ import { MatSliderModule } from '@angular/material/slider';
 import { MatSnackBarModule } from '@angular/material/snack-bar';
 import { ImgFallbackDirective } from './directives/image-fallback.directive';
 import { MAT_SNACK_BAR_DEFAULT_OPTIONS } from '@angular/material/snack-bar';
+import { MAT_BUTTON_TOGGLE_DEFAULT_OPTIONS } from '@angular/material/button-toggle';
 import { ScrollingModule } from '@angular/cdk/scrolling';
 import { ArrayFormControlComponent } from './components/array-form-control/array-form-control.component';
 import { UpgradeNoteComponent } from '././components/upgrade-note/upgrade-note.component';
@@ -81,6 +82,9 @@ import { AbstractFormControlCasterPipe } from './pipe/abstract-form-control-cast
 import { VersionHistoryIndicatorComponent } from './components/ap-version-status-indicator/ap-version-history-indicator.component';
 import { InsideBuilderDatePipe } from './pipe/inside-builder-date.pipe';
 import { ConfirmActionDialogComponent } from './components/dialogs/confirm-action-dialog/confirm-action-dialog.component';
+import { DurationFormatterPipe } from './pipe';
+import { ContactSalesDialogComponent } from './components/dialogs/contact-sales-dialog/contact-sales-dialog.component';
+import { ContactSalesComponent } from './components/contact-sales/contact-sales.component';
 
 const exportedImports = [
   CommonModule,
@@ -117,6 +121,7 @@ const exportedImports = [
   AbstractFormControlCasterPipe,
   VersionHistoryIndicatorComponent,
   InsideBuilderDatePipe,
+  DurationFormatterPipe,
 ];
 const exportedDeclarations = [
   UploadFileControlComponent,
@@ -158,6 +163,8 @@ const exportedDeclarations = [
   DropdownPropertySearchPipe,
   LetterIconComponent,
   ConfirmActionDialogComponent,
+  ContactSalesDialogComponent,
+  ContactSalesComponent,
 ];
 export const materialTooltipDefaults: MatTooltipDefaultOptions = {
   showDelay: 0,
@@ -199,6 +206,13 @@ export function markedOptionsFactory() {
   ],
   providers: [
     { provide: MAT_SNACK_BAR_DEFAULT_OPTIONS, useValue: { duration: 2500 } },
+    {
+      provide: MAT_BUTTON_TOGGLE_DEFAULT_OPTIONS,
+      useValue: {
+        hideMultipleSelectionIndicator: true,
+        hideSingleSelectionIndicator: true,
+      },
+    },
     {
       provide: MAT_FORM_FIELD_DEFAULT_OPTIONS,
       useValue: { appearance: 'outline' },

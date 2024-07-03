@@ -5,15 +5,14 @@ import {
   ViewChild,
 } from '@angular/core';
 import {
-  ApEdition,
   FlowRunStatus,
   FlowId,
   FlowRetryStrategy,
   FlowRun,
-  NotificationStatus,
   ProjectId,
   SeekPage,
   spreadIfDefined,
+  Permission,
 } from '@activepieces/shared';
 import { ActivatedRoute } from '@angular/router';
 import {
@@ -25,14 +24,12 @@ import {
   startWith,
   Subject,
   switchMap,
-  take,
   tap,
 } from 'rxjs';
 import { RunsTableDataSource } from './runs-table.datasource';
 import {
   InstanceRunService,
   ApPaginatorComponent,
-  FlagService,
   NavigationService,
   AuthenticationService,
   FlowService,
@@ -47,6 +44,8 @@ import {
   CURSOR_QUERY_PARAM,
   executionsPageFragments,
   EmbeddingService,
+  SelectAllDirective,
+  TableCore,
 } from '@activepieces/ui/common';
 import { FormControl, FormGroup } from '@angular/forms';
 import { RunsService } from '../../services/runs.service';
@@ -54,6 +53,7 @@ import { DropdownOption } from '@activepieces/pieces-framework';
 import { CommonModule } from '@angular/common';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatNativeDateModule } from '@angular/material/core';
+import dayjs from 'dayjs';
 const allOptionValue = 'all';
 @Component({
   templateUrl: './runs-table.component.html',
@@ -65,10 +65,11 @@ const allOptionValue = 'all';
     ApDatePipe,
     MatDatepickerModule,
     MatNativeDateModule,
+    SelectAllDirective,
   ],
   selector: 'app-runs-table',
 })
-export class RunsTableComponent implements OnInit {
+export class RunsTableComponent extends TableCore implements OnInit {
   @ViewChild(ApPaginatorComponent, { static: true })
   paginator!: ApPaginatorComponent;
   readonly allOptionValue = allOptionValue;
@@ -76,14 +77,11 @@ export class RunsTableComponent implements OnInit {
   searchControl: FormControl<string> = new FormControl('', {
     nonNullable: true,
   });
-  nonCommunityEdition$: Observable<boolean>;
-  toggleNotificationFormControl: FormControl<boolean> = new FormControl();
   dataSource!: RunsTableDataSource;
-  displayedColumns = ['flowName', 'status', 'started', 'finished', 'action'];
-  updateNotificationsValue$: Observable<unknown>;
   refreshTableForReruns$: Subject<boolean> = new Subject();
-  statusFilterControl: FormControl<FlowRunStatus | typeof allOptionValue> =
-    new FormControl(allOptionValue, { nonNullable: true });
+  statusFilterControl: FormControl<FlowRunStatus[]> = new FormControl([], {
+    nonNullable: true,
+  });
   flowFilterControl = new FormControl<string>(allOptionValue, {
     nonNullable: true,
   });
@@ -99,10 +97,10 @@ export class RunsTableComponent implements OnInit {
   FlowRetryStrategy: typeof FlowRetryStrategy = FlowRetryStrategy;
   retryFlow$?: Observable<void>;
   setInitialFilters$?: Observable<void>;
-
+  allStatuses = Object.values(FlowRunStatus);
+  hasPermissionToRetryFlow = this.hasPermission(Permission.RETRY_RUN);
   constructor(
     private activatedRoute: ActivatedRoute,
-    private flagsService: FlagService,
     private projectService: ProjectService,
     private instanceRunService: InstanceRunService,
     private navigationService: NavigationService,
@@ -111,14 +109,17 @@ export class RunsTableComponent implements OnInit {
     private authenticationService: AuthenticationService,
     private embeddingService: EmbeddingService
   ) {
+    super({
+      tableColumns: ['flowName', 'status', 'started', 'duration', 'action'],
+    });
     this.flowFilterControl.setValue(
       this.activatedRoute.snapshot.queryParamMap.get(FLOW_QUERY_PARAM) ||
         this.allOptionValue
     );
+    const statusQueryParam =
+      this.activatedRoute.snapshot.queryParamMap.get(STATUS_QUERY_PARAM);
     this.statusFilterControl.setValue(
-      (this.activatedRoute.snapshot.queryParamMap.get(
-        STATUS_QUERY_PARAM
-      ) as FlowRunStatus) || this.allOptionValue
+      statusQueryParam ? ([statusQueryParam] as FlowRunStatus[]) : []
     );
     const startDate = this.activatedRoute.snapshot.queryParamMap.get(
       DATE_RANGE_START_QUERY_PARAM
@@ -198,10 +199,7 @@ export class RunsTableComponent implements OnInit {
                   result.flowId === this.allOptionValue
                     ? undefined
                     : result.flowId,
-                [STATUS_QUERY_PARAM]:
-                  result.status === this.allOptionValue
-                    ? undefined
-                    : result.status,
+                [STATUS_QUERY_PARAM]: result.status,
                 [DATE_RANGE_START_QUERY_PARAM]: result.date.start
                   ? createdAfter.toISOString()
                   : undefined,
@@ -215,30 +213,6 @@ export class RunsTableComponent implements OnInit {
         }
       }),
       map(() => undefined)
-    );
-
-    this.nonCommunityEdition$ = this.flagsService
-      .getEdition()
-      .pipe(map((res) => res !== ApEdition.COMMUNITY));
-    this.updateNotificationsValue$ = this.projectService.currentProject$.pipe(
-      take(1),
-      tap((project) => {
-        this.toggleNotificationFormControl.setValue(
-          project?.notifyStatus === NotificationStatus.ALWAYS
-        );
-      }),
-      switchMap(() => {
-        return this.toggleNotificationFormControl.valueChanges.pipe(
-          distinctUntilChanged(),
-          switchMap((value) => {
-            return this.projectService.update(this.currentProject, {
-              notifyStatus: value
-                ? NotificationStatus.ALWAYS
-                : NotificationStatus.NEVER,
-            });
-          })
-        );
-      })
     );
 
     this.dataSource = new RunsTableDataSource(
@@ -274,10 +248,7 @@ export class RunsTableComponent implements OnInit {
         this.flowFilterControl.value === this.allOptionValue
           ? undefined
           : this.flowFilterControl.value,
-      [STATUS_QUERY_PARAM]:
-        this.statusFilterControl.value === this.allOptionValue
-          ? undefined
-          : this.statusFilterControl.value,
+      [STATUS_QUERY_PARAM]: this.statusFilterControl.value,
       [DATE_RANGE_START_QUERY_PARAM]: this.dateFormGroup.value.start
         ? this.dateFormGroup.value.start.toISOString()
         : undefined,
@@ -288,8 +259,12 @@ export class RunsTableComponent implements OnInit {
       ...spreadIfDefined(CURSOR_QUERY_PARAM, this.paginator.cursor),
     };
   }
-  setParams(status: FlowRunStatus, flowId: string) {
-    this.statusFilterControl.setValue(status);
+  setParams(statuses: FlowRunStatus[], flowId: string, createdAt: string) {
+    this.statusFilterControl.setValue(statuses);
     this.flowFilterControl.setValue(flowId);
+    this.dateFormGroup.setValue({
+      start: dayjs(createdAt).toDate(),
+      end: null,
+    });
   }
 }

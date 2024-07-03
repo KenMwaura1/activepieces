@@ -1,17 +1,21 @@
 <div class="ap-w-full ap-px-[30px] ap-pt-[50px]">
   <div class="ap-h-full">
     <ap-page-title [title]="title">
-      <ap-button actionButton (buttonClicked)="openNewConnectionDialog()" btnSize="medium" btnColor="primary" i18n>+ New
-        Connection</ap-button>
+    
+      
+        <ap-button  actionButton [disabled]="isReadOnly" [tooltipText]="isReadOnly? unpermittedTooltip: ''" (buttonClicked)="openNewConnectionDialog()" btnSize="medium" btnColor="primary" i18n>+ New
+          Connection</ap-button>
+      
+   
     </ap-page-title>
     <div class="ap-w-full ap-flex ap-flex-row ap-items-center ap-gap-2">
       <mat-form-field class="!ap-min-w-[15.625rem] ap-items-center" appearance="outline">
-        <mat-label i18n>Filter by name</mat-label>
+        <mat-label i18n>Filter by Name</mat-label>
         <input matInput type="text" class="ap-p-2 ap-rounded-lg ap-border-solid ap-border-dividers ap-border"
           [formControl]="connectionNameFilterControl" />
       </mat-form-field>
       <mat-form-field class="!ap-min-w-[15.625rem] ap-items-center" appearance="outline">
-        <mat-label i18n>Filter by piece</mat-label>
+        <mat-label i18n>Filter by Piece</mat-label>
         <mat-select [formControl]="pieceNameFilterControl">
           <ap-dropdown-search-control [searchControl]="searchControl"></ap-dropdown-search-control>
           @if(allPieces | async; as allPieces ){
@@ -63,13 +67,14 @@
           </td>
         </ng-container>
 
-        <ng-container matColumnDef="action">
-          <th mat-header-cell *matHeaderCellDef></th>
-          <td mat-cell *matCellDef="let connection">
-            <ap-icon-button tooltipText="Delete Connection" i18n-tooltipText iconFilename="trash.svg" color="warn"
-              [width]="20" [height]="20" (buttonClicked)="deleteConnection(connection)" [height]="16"></ap-icon-button>
-          </td>
+          <ng-container matColumnDef="action">
+            <th mat-header-cell *matHeaderCellDef></th>
+            <td mat-cell *matCellDef="let connection">
+              <ap-icon-button [buttonDisabled]="isReadOnly" [tooltipText]="deleteConnectionTooltip" iconFilename="trash.svg" color="warn"
+                [width]="20" [height]="20" (buttonClicked)="deleteConnection(connection)" [height]="16"></ap-icon-button>
+            </td>
         </ng-container>
+       
 
         <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
         <tr mat-row [class.ap-hidden]="(dataSource.isLoading$ | async) || dataSource.data.length === 0"

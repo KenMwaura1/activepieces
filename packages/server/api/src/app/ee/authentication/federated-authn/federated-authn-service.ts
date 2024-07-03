@@ -1,11 +1,11 @@
-import { authenticationService } from '../../../authentication/authentication-service'
-import { resolvePlatformIdFromEmail } from '../../../platform/platform-utils'
-import { platformService } from '../../../platform/platform.service'
-import { providers } from './authn-provider/authn-provider'
 import { AuthenticationResponse,
     FederatedAuthnLoginResponse,
     ThirdPartyAuthnProviderEnum,
 } from '@activepieces/shared'
+import { authenticationService } from '../../../authentication/authentication-service'
+import { resolvePlatformIdFromEmail } from '../../../platform/platform-utils'
+import { platformService } from '../../../platform/platform.service'
+import { providers } from './authn-provider/authn-provider'
 
 export const federatedAuthnService = {
     async login({
@@ -31,7 +31,7 @@ export const federatedAuthnService = {
         const provider = providers[providerName]
         const platform = await platformService.getOneOrThrow(platformId)
         const idToken = await provider.authenticate(hostname, platform, code)
-        const platformIdFromEmail = await resolvePlatformIdFromEmail(platformId, idToken.email)
+        const platformIdFromEmail = (await resolvePlatformIdFromEmail(idToken.email)) ?? platformId
         return authenticationService.federatedAuthn({
             email: idToken.email,
             verified: true,

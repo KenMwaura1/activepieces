@@ -1,7 +1,7 @@
-import { logEmailSender } from './log-email-sender'
-import { smtpEmailSender } from './smtp-email-sender'
 import { system, SystemProp } from '@activepieces/server-shared'
 import { ApEnvironment } from '@activepieces/shared'
+import { logEmailSender } from './log-email-sender'
+import { smtpEmailSender } from './smtp-email-sender'
 
 export type EmailSender = {
     send: (args: SendArgs) => Promise<void>
@@ -25,22 +25,27 @@ type BaseEmailTemplateData<Name extends string, Vars extends Record<string, stri
 }
 
 type InvitationEmailTemplateData = BaseEmailTemplateData<'invitation-email', {
-    projectName: string
+    projectOrPlatformName: string
+    role: string
     setupLink: string
 }>
 
 type QuotaEmailTemplateData = BaseEmailTemplateData<'quota-50' | 'quota-90' | 'quota-100', {
     resetDate: string
-    firstName: string
 }>
 
 type ResetPasswordEmailTemplateData = BaseEmailTemplateData<'reset-password', {
     setupLink: string
-    firstName: string
 }>
 
 type VerifyEmailTemplateData = BaseEmailTemplateData<'verify-email', {
     setupLink: string
+}>
+
+type IssueCreatedTemplateData = BaseEmailTemplateData<'issue-created', {
+    issueUrl: string
+    flowName: string
+    createdAt: string
 }>
 
 export type EmailTemplateData =
@@ -48,9 +53,10 @@ export type EmailTemplateData =
   | QuotaEmailTemplateData
   | ResetPasswordEmailTemplateData
   | VerifyEmailTemplateData
+  | IssueCreatedTemplateData
 
 type SendArgs = {
-    email: string
+    emails: string[]
     platformId: string | undefined
     templateData: EmailTemplateData
 }

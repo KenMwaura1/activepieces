@@ -5,7 +5,6 @@ import {
     EngineOperationType,
     EngineResponse,
     EngineResponseStatus,
-    EngineTestOperation,
     ExecuteActionResponse,
     ExecuteExtractPieceMetadata,
     ExecuteFlowOperation,
@@ -27,17 +26,28 @@ import { testExecutionContext } from './handler/context/test-execution-context'
 import { flowExecutor } from './handler/flow-executor'
 import { pieceHelper } from './helper/piece-helper'
 import { triggerHelper } from './helper/trigger-helper'
+import { progressService } from './services/progress.service'
 import { utils } from './utils'
 
-const executeFlow = async (input: ExecuteFlowOperation, context: FlowExecutorContext): Promise<EngineResponse<FlowRunResponse>> => {
+const executeFlow = async (input: ExecuteFlowOperation, context: FlowExecutorContext): Promise<EngineResponse<Pick<FlowRunResponse, 'status' | 'error'>>> => {
+    const constants = EngineConstants.fromExecuteFlowInput(input)
     const output = await flowExecutor.execute({
         action: input.flowVersion.trigger.nextAction,
         executionState: context,
-        constants: EngineConstants.fromExecuteFlowInput(input),
+        constants,
     })
+    const newContext = output.verdict === ExecutionVerdict.RUNNING ? output.setVerdict(ExecutionVerdict.SUCCEEDED, output.verdictResponse) : output
+    await progressService.sendUpdate({
+        engineConstants: constants,
+        flowExecutorContext: newContext,
+    })
+    const response = await newContext.toResponse()
     return {
         status: EngineResponseStatus.OK,
-        response: await output.toResponse(),
+        response: {
+            status: response.status,
+            error: response.error,
+        },
     }
 }
 
@@ -53,7 +63,7 @@ async function executeStep(input: ExecuteStepOperation): Promise<ExecuteActionRe
             flowVersion: input.flowVersion,
             excludedStepName: step.name,
             projectId: input.projectId,
-            workerToken: input.workerToken,
+            engineToken: input.engineToken,
         }),
         constants: EngineConstants.fromExecuteStepInput(input),
     })
@@ -112,7 +122,7 @@ export async function execute(operationType: EngineOperationType, operation: Eng
                     executionState: await testExecutionContext.stateFromFlowVersion({
                         flowVersion: input.flowVersion,
                         projectId: input.projectId,
-                        workerToken: input.workerToken,
+                        engineToken: input.engineToken,
                     }),
                     searchValue: input.searchValue,
                     constants: EngineConstants.fromExecutePropertyInput(input),
@@ -152,16 +162,6 @@ export async function execute(operationType: EngineOperationType, operation: Eng
                     status: EngineResponseStatus.OK,
                     response: output,
                 }
-            }
-            case EngineOperationType.EXECUTE_TEST_FLOW: {
-                const input = operation as EngineTestOperation
-                const testExecutionState = await testExecutionContext.stateFromFlowVersion({
-                    flowVersion: input.sourceFlowVersion,
-                    projectId: input.projectId,
-                    workerToken: input.workerToken,
-                })
-                const output = await executeFlow(input, testExecutionState)
-                return output
             }
         }
     }
